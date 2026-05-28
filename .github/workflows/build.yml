@@ -1,0 +1,55 @@
+name: Build GamerMacro Pro EXE
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pyautogui pillow pynput pyinstaller
+
+      - name: Build EXE
+        run: |
+          pyinstaller --onefile --windowed --name "GamerMacroPro" gamermacro.py
+
+      - name: Get date
+        id: date
+        run: echo "date=$(Get-Date -Format 'yyyy-MM-dd')" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0-${{ steps.date.outputs.date }}
+          name: "GamerMacro Pro — ${{ steps.date.outputs.date }}"
+          body: |
+            ## 🎮 GamerMacro Pro — Download Ready!
+
+            ### ⬇️ Descarca
+            Click pe **GamerMacroPro.exe** — fara Python, fara instalat nimic!
+
+            ### Features
+            - ⏺ **Macro Recorder** — inregistreaza taste + mouse, redeaza cu viteza variabila, salveaza/incarca profiluri
+            - 👁 **Pixel Watcher** — detecteaza culori pe ecran si executa actiuni automat (fishing bot, etc.)
+
+            ### ⚠️ Emergency stop
+            Muta mouse-ul in **coltul stanga-sus** pentru oprire urgenta.
+          files: dist/GamerMacroPro.exe
+          draft: false
+          prerelease: false
