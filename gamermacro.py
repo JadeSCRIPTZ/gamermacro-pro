@@ -69,7 +69,7 @@ class NeonButton(tk.Frame):
     def _on_enter(self, _=None):
         if not self._enabled: return
         self._btn.config(bg=C["accent_dim"] if self._color == C["accent"]
-                         else self._color + "22",
+                         else C["bg2"],
                          fg="#FFFFFF")
 
     def _on_leave(self, _=None):
@@ -102,7 +102,7 @@ class ToggleSwitch(tk.Frame):
 
         self._on_btn = tk.Button(self, text="  ON  ",
             bg=C["bg3"], fg=C["text3"],
-            activebackground=C["purple"] + "44", activeforeground=C["purple"],
+            activebackground=C["bg3"], activeforeground=C["purple"],
             relief="flat", bd=0, font=FS, cursor="hand2",
             command=self._set_on)
         self._on_btn.pack(side="left")
