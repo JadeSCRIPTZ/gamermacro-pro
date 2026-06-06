@@ -1,6 +1,8 @@
 """
-GamerMacro Pro — Fishing Edition  v2.1
-Cyberpunk HUD design — stable tkinter only, no Canvas widgets
+GamerMacro Pro — Fishing Edition v4.0
+Theme : Modern grey-violet (Discord/Linear inspired)
+Scroll: canvas + recursive mousewheel bind
+Layout: compact 2-col to fit screen without needing scroll
 """
 import tkinter as tk
 import threading, time, random, sys, math
@@ -8,639 +10,570 @@ import threading, time, random, sys, math
 try:
     import pyautogui
     pyautogui.FAILSAFE = True
-    pyautogui.PAUSE    = 0
+    pyautogui.PAUSE = 0
 except ImportError:
     print("Run: pip install pyautogui pillow"); sys.exit(1)
 
-# ── Palette ────────────────────────────────────────────────────────────────────
-C = {
-    "bg":       "#070B14", "bg2": "#0D1220", "bg3": "#111827",
-    "panel":    "#0A0F1E", "border": "#1E2D4A", "border2": "#2A3F66",
-    "accent":   "#00D4FF", "accent2": "#0099CC", "accent_dim": "#003D52",
-    "green":    "#00FF88", "green2": "#00CC6A",
-    "red":      "#FF2D55", "red2": "#CC1F40",
-    "yellow":   "#FFD60A", "purple": "#BF5AF2",
-    "text":     "#E8F4FD", "text2": "#8BAFD4", "text3": "#4A6080",
-}
+# ─── Palette ──────────────────────────────────────────────────
+BG    = "#23253A"   # fundal – gri-albastru inchis
+S1    = "#2E3150"   # card suprafata
+S2    = "#363A5C"   # input / suprafata 2
+S3    = "#404468"   # hover / suprafata 3
+BORD  = "#4B508A"   # border
+ACC   = "#9B8FFF"   # violet accent principal
+ACC2  = "#C4BBFF"   # violet deschis / text accent
+ACCDK = "#5A4FCC"   # violet inchis (hover butoane)
+GRN   = "#57E89C"   # verde
+GRNDK = "#1A5C3A"   # verde bg
+RED   = "#FF7575"   # rosu
+REDDK = "#5C1F1F"   # rosu bg
+YEL   = "#FFCC44"   # galben
+TXT   = "#E8E9F3"   # text principal
+TXT2  = "#9DA3C8"   # text secundar
+TXT3  = "#5A5F8A"   # text disabled/muted
 
-FB = ("Consolas", 10, "bold")   # font button
-FH = ("Consolas", 9,  "bold")   # font header
-FS = ("Consolas", 8)            # font small
-FM = ("Consolas", 10)           # font medium
-FL = ("Consolas", 11, "bold")   # font large
+FN = "Segoe UI"     # font principal
 
+def mk_btn(parent, text, cmd, bg=ACC, fg=TXT, abg=ACCDK,
+           dfg=TXT3, state="normal", **kw):
+    return tk.Button(parent, text=text, command=cmd,
+                     bg=bg, fg=fg,
+                     activebackground=abg, activeforeground=TXT,
+                     disabledforeground=dfg,
+                     relief="flat", bd=0, cursor="hand2",
+                     font=(FN, 10, "bold"), state=state, **kw)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  STABLE WIDGETS  (no Canvas item creation in __init__)
-# ─────────────────────────────────────────────────────────────────────────────
+def lbl(parent, text, fg=TXT2, size=9, bold=False, **kw):
+    return tk.Label(parent, text=text, fg=fg, bg=parent["bg"],
+                    font=(FN, size, "bold" if bold else "normal"), **kw)
 
-class NeonButton(tk.Frame):
-    """Neon border button: tk.Frame(border color) wraps tk.Button."""
-    def __init__(self, master, text, cmd,
-                 color=None, w=200, h=40, enabled=True, **kw):
-        color = color or C["accent"]
-        super().__init__(master, bg=color, padx=1, pady=1, **kw)
+def sep(parent, color=BORD):
+    tk.Frame(parent, bg=color, height=1).pack(fill="x")
 
-        self._color   = color
-        self._cmd     = cmd
-        self._enabled = enabled
-
-        self._btn = tk.Button(
-            self, text=text, command=self._click,
-            bg=C["bg3"], fg=color,
-            activebackground=C["bg2"], activeforeground="#FFFFFF",
-            disabledforeground=C["text3"],
-            relief="flat", bd=0, cursor="hand2",
-            font=FB, width=w // 10,
-            pady=(h - 24) // 2,
-            state="normal" if enabled else "disabled")
-        self._btn.pack(fill="both", expand=True)
-
-        self._btn.bind("<Enter>", self._on_enter)
-        self._btn.bind("<Leave>", self._on_leave)
-
-        if not enabled:
-            self.config(bg=C["border"])
-
-    def _click(self):
-        if self._enabled and self._cmd:
-            self._cmd()
-
-    def _on_enter(self, _=None):
-        if not self._enabled: return
-        self._btn.config(bg=C["accent_dim"] if self._color == C["accent"]
-                         else C["bg2"],
-                         fg="#FFFFFF")
-
-    def _on_leave(self, _=None):
-        if not self._enabled: return
-        self._btn.config(bg=C["bg3"], fg=self._color)
-
-    def set_enabled(self, state: bool):
-        self._enabled = state
-        self._btn.config(state="normal" if state else "disabled")
-        self.config(bg=self._color if state else C["border"])
-        if state:
-            self._btn.config(bg=C["bg3"], fg=self._color)
+def gap(parent, n=8):
+    tk.Frame(parent, bg=parent["bg"], height=n).pack(fill="x")
 
 
-class ToggleSwitch(tk.Frame):
-    """ON/OFF toggle as a styled button row — no Canvas."""
-    def __init__(self, master, on_toggle=None, **kw):
-        super().__init__(master, bg=C["panel"], **kw)
-        self._on       = False
-        self._callback = on_toggle
+class Field(tk.Frame):
+    """Label + Entry compact."""
+    def __init__(self, master, label, val="0", w=7, **kw):
+        super().__init__(master, bg=master["bg"], **kw)
+        lbl(self, label, fg=TXT2, size=8).pack(anchor="w", pady=(0,2))
+        self.var = tk.StringVar(value=str(val))
+        e = tk.Entry(self, textvariable=self.var, width=w,
+                     bg=S2, fg=TXT, insertbackground=ACC2,
+                     relief="flat", bd=0,
+                     font=("Consolas", 10), justify="center",
+                     highlightthickness=1,
+                     highlightbackground=BORD,
+                     highlightcolor=ACC)
+        e.pack(ipady=6, ipadx=4)
+        e.bind("<FocusIn>",  lambda _: e.config(highlightbackground=ACC))
+        e.bind("<FocusOut>", lambda _: e.config(highlightbackground=BORD))
 
-        self._off_btn = tk.Button(self, text="  OFF  ",
-            bg=C["border"], fg=C["text3"],
-            activebackground=C["border2"], activeforeground=C["text"],
-            relief="flat", bd=0, font=FS, cursor="hand2",
-            command=self._set_off)
-        self._off_btn.pack(side="left")
 
-        tk.Frame(self, bg=C["border2"], width=1).pack(side="left", fill="y")
+class Swatch(tk.Frame):
+    def __init__(self, master, sz=38, **kw):
+        super().__init__(master, width=sz, height=sz, bg=S2,
+                         highlightthickness=1,
+                         highlightbackground=BORD, **kw)
+        self.pack_propagate(False)
+    def update(self, r, g, b):
+        c = f"#{r:02x}{g:02x}{b:02x}"
+        self.config(bg=c, highlightbackground=c)
 
-        self._on_btn = tk.Button(self, text="  ON  ",
-            bg=C["bg3"], fg=C["text3"],
-            activebackground=C["bg3"], activeforeground=C["purple"],
-            relief="flat", bd=0, font=FS, cursor="hand2",
-            command=self._set_on)
-        self._on_btn.pack(side="left")
 
-        self._update()
+class Toggle(tk.Frame):
+    """OFF | ON toggle — plain buttons, never crashes."""
+    def __init__(self, master, cb=None, **kw):
+        super().__init__(master, bg=S2,
+                         highlightthickness=1,
+                         highlightbackground=BORD, **kw)
+        self._on = False; self._cb = cb
+        self._boff = tk.Button(self, text=" OFF ",
+            bg=S3, fg=TXT2, activebackground=BORD,
+            activeforeground=TXT, relief="flat", bd=0,
+            font=(FN, 8, "bold"), cursor="hand2",
+            command=self._do_off)
+        self._boff.pack(side="left", padx=2, pady=2)
+        tk.Frame(self, bg=BORD, width=1).pack(side="left", fill="y")
+        self._bon = tk.Button(self, text="  ON  ",
+            bg=S2, fg=TXT3, activebackground=ACCDK,
+            activeforeground=ACC2, relief="flat", bd=0,
+            font=(FN, 8, "bold"), cursor="hand2",
+            command=self._do_on)
+        self._bon.pack(side="left", padx=2, pady=2)
+        self._refresh()
 
-    def _set_on(self):
+    def _do_on(self):
         if self._on: return
-        self._on = True
-        self._update()
-        if self._callback: self._callback(True)
+        self._on = True; self._refresh()
+        if self._cb: self._cb(True)
 
-    def _set_off(self):
+    def _do_off(self):
         if not self._on: return
-        self._on = False
-        self._update()
-        if self._callback: self._callback(False)
+        self._on = False; self._refresh()
+        if self._cb: self._cb(False)
 
-    def _update(self):
+    def _refresh(self):
         if self._on:
-            self._on_btn.config(bg=C["purple"], fg="#FFFFFF")
-            self._off_btn.config(bg=C["bg3"], fg=C["text3"])
+            self._bon.config(bg=ACC, fg=TXT)
+            self._boff.config(bg=S2, fg=TXT3)
+            self.config(highlightbackground=ACC)
         else:
-            self._off_btn.config(bg=C["border"], fg=C["text"])
-            self._on_btn.config(bg=C["bg3"], fg=C["text3"])
+            self._boff.config(bg=S3, fg=TXT2)
+            self._bon.config(bg=S2, fg=TXT3)
+            self.config(highlightbackground=BORD)
 
     def get(self): return self._on
 
 
-class StatusOrb(tk.Label):
-    """Pulsing dot via label text color cycling."""
-    def __init__(self, master, **kw):
-        super().__init__(master, text="●", fg=C["text3"],
-                         bg=C["bg"], font=("Consolas", 14), **kw)
-        self._on   = False
-        self._tick = 0
-        self._job  = None
-
-    def set_active(self, active: bool):
-        self._on = active
-        if self._job:
-            self.after_cancel(self._job)
-            self._job = None
-        if active:
-            self._pulse()
-        else:
-            self.config(fg=C["text3"])
-
-    def _pulse(self):
-        if not self._on: return
-        self._tick += 1
-        bright = 0.55 + 0.45 * math.sin(self._tick * 0.18)
-        g = int(200 + 55 * bright)
-        self.config(fg=f"#00{g:02x}55")
-        self._job = self.after(45, self._pulse)
-
-
-class ColorSwatch(tk.Frame):
-    """Color preview square using Frame bg — no Canvas."""
-    def __init__(self, master, size=36, **kw):
-        super().__init__(master, width=size, height=size,
-                         bg="#111111",
-                         highlightthickness=1,
-                         highlightbackground=C["border2"], **kw)
-        self.pack_propagate(False)
-
-    def set(self, r, g, b):
-        self.config(bg=f"#{r:02x}{g:02x}{b:02x}")
-
-
-class InputField(tk.Frame):
-    """Label + styled Entry combo."""
-    def __init__(self, master, label, default="0", w=7, **kw):
-        super().__init__(master, bg=C["panel"], **kw)
-        tk.Label(self, text=label, fg=C["text2"],
-                 bg=C["panel"], font=FS).pack(anchor="w", pady=(0, 3))
-        self.var = tk.StringVar(value=str(default))
-        self._e = tk.Entry(self, textvariable=self.var, width=w,
-                           bg=C["bg2"], fg=C["text"],
-                           insertbackground=C["accent"],
-                           relief="flat", bd=0, font=FM,
-                           justify="center",
-                           highlightthickness=1,
-                           highlightcolor=C["accent"],
-                           highlightbackground=C["border"])
-        self._e.pack(ipady=6, ipadx=4)
-        self._e.bind("<FocusIn>",
-            lambda _: self._e.config(highlightbackground=C["accent"]))
-        self._e.bind("<FocusOut>",
-            lambda _: self._e.config(highlightbackground=C["border"]))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  MAIN APP
-# ─────────────────────────────────────────────────────────────────────────────
-class FishBotApp:
+# ─── Main App ──────────────────────────────────────────────────
+class App:
     POLL = 0.05
 
-    def __init__(self, root: tk.Tk):
-        self.root      = root
-        self._running  = False
-        self._thread   = None
-        self._natural  = False
-        self._catches  = 0
-        self._build_window()
-        self._build_ui()
+    def __init__(self, root):
+        self.root = root
+        self._running = self._natural = False
+        self._catches = 0
+        self._thread  = None
+        self._setup_window()
+        self._build()
 
-    def _build_window(self):
-        r = self.root
-        r.title("GamerMacro Pro — Fishing Edition")
-        r.configure(bg=C["bg"])
-        r.resizable(False, False)
-        r.attributes("-topmost", True)
-        w, h = 480, 760
-        sw, sh = r.winfo_screenwidth(), r.winfo_screenheight()
-        r.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+    def _setup_window(self):
+        self.root.title("GamerMacro Pro")
+        self.root.configure(bg=BG)
+        self.root.resizable(False, False)
+        self.root.attributes("-topmost", True)
+        W, H = 520, 650
+        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        self.root.geometry(f"{W}x{H}+{(sw-W)//2}+{(sh-H)//2}")
 
-    # ── Build all UI ───────────────────────────────────────────────────────────
-    def _build_ui(self):
-        root = self.root
-
-        # Top accent bar
-        tk.Frame(root, bg=C["accent"], height=2).pack(fill="x")
+    def _build(self):
+        # ── Top bar violet ──────────────────────────────────────
+        tk.Frame(self.root, bg=ACC, height=3).pack(fill="x")
 
         # ── Header ─────────────────────────────────────────────
-        hdr = tk.Frame(root, bg=C["bg"])
-        hdr.pack(fill="x", padx=20, pady=(14, 10))
+        hdr = tk.Frame(self.root, bg=BG)
+        hdr.pack(fill="x", padx=18, pady=(12, 8))
 
-        left = tk.Frame(hdr, bg=C["bg"])
-        left.pack(side="left")
-        tk.Label(left, text="GAMERMACRO PRO",
-                 fg=C["accent"], bg=C["bg"],
-                 font=("Consolas", 19, "bold")).pack(anchor="w")
-        tk.Label(left, text="FISHING EDITION  //  PIXEL WATCHER  //  v2.1",
-                 fg=C["text3"], bg=C["bg"], font=FS).pack(anchor="w")
+        hl = tk.Frame(hdr, bg=BG)
+        hl.pack(side="left")
+        tk.Label(hl, text="GamerMacro Pro",
+                 fg=TXT, bg=BG,
+                 font=(FN, 17, "bold")).pack(anchor="w")
+        tk.Label(hl, text="Fishing Edition  ·  Pixel Watcher",
+                 fg=TXT3, bg=BG,
+                 font=(FN, 9)).pack(anchor="w")
 
-        right = tk.Frame(hdr, bg=C["bg"])
-        right.pack(side="right", anchor="ne")
-        self.orb = StatusOrb(right)
-        self.orb.pack(side="left", padx=(0, 6))
-        self.status_lbl = tk.Label(right, text="IDLE",
-                                   fg=C["text3"], bg=C["bg"],
-                                   font=("Consolas", 10, "bold"))
-        self.status_lbl.pack(side="left")
+        hr = tk.Frame(hdr, bg=BG)
+        hr.pack(side="right", anchor="ne")
+        self._status = tk.Label(hr, text="⬤  IDLE",
+                                fg=TXT3, bg=BG,
+                                font=(FN, 9, "bold"))
+        self._status.pack(anchor="e")
+        self._clbl = tk.Label(hr, text="Catches: 0",
+                              fg=YEL, bg=BG,
+                              font=(FN, 9))
+        self._clbl.pack(anchor="e", pady=(3, 0))
 
-        # Divider
-        tk.Frame(root, bg=C["border2"], height=1).pack(fill="x")
+        sep(self.root, BORD)
 
-        # ── Scrollable content ─────────────────────────────────
-        wrap = tk.Frame(root, bg=C["bg"])
-        wrap.pack(fill="both", expand=True)
-        P = wrap  # alias
+        # ── Scroll canvas ───────────────────────────────────────
+        outer = tk.Frame(self.root, bg=BG)
+        outer.pack(fill="both", expand=True)
 
-        def sp(n=10):
-            tk.Frame(P, bg=C["bg"], height=n).pack(fill="x")
+        self._cvs = tk.Canvas(outer, bg=BG, bd=0,
+                              highlightthickness=0)
+        sb = tk.Scrollbar(outer, orient="vertical",
+                          command=self._cvs.yview,
+                          bg=S2, troughcolor=BG,
+                          activebackground=ACC)
+        sb.pack(side="right", fill="y")
+        self._cvs.pack(side="left", fill="both", expand=True)
+        self._cvs.configure(yscrollcommand=sb.set)
 
-        sp(14)
+        self._frm = tk.Frame(self._cvs, bg=BG)
+        self._wid = self._cvs.create_window(
+            (0, 0), window=self._frm, anchor="nw")
 
-        # ══ SECTION 1: COORDONATE ══════════════════════════════
-        self._sec(P, "01", "COORDONATE PIXEL", "🎯")
-        sp(8)
+        self._frm.bind("<Configure>",
+            lambda e: self._cvs.configure(
+                scrollregion=self._cvs.bbox("all")))
+        self._cvs.bind("<Configure>",
+            lambda e: self._cvs.itemconfig(self._wid, width=e.width))
 
-        card1 = self._card(P)
-        xy = tk.Frame(card1, bg=C["panel"])
-        xy.pack(fill="x", padx=16, pady=(14, 8))
-        self.x_f = InputField(xy, "X  —  pixeli", "0", 8)
-        self.x_f.pack(side="left", padx=(0, 14))
-        self.y_f = InputField(xy, "Y  —  pixeli", "0", 8)
-        self.y_f.pack(side="left")
+        # ── Footer ──────────────────────────────────────────────
+        sep(self.root, BORD)
+        tk.Label(self.root,
+                 text="⚠  Failsafe: muta mouse-ul in coltul stanga-sus",
+                 fg=TXT3, bg=BG, font=(FN, 8)).pack(pady=5)
 
-        self.coord_lbl = tk.Label(card1, text="Nicio coordonata capturata.",
-                                  fg=C["text3"], bg=C["panel"], font=FS)
-        self.coord_lbl.pack(anchor="w", padx=16, pady=(0, 10))
+        # ── Build content + bind scroll ─────────────────────────
+        self._content(self._frm)
+        self._bind_scroll(self._frm)
 
-        self.cap_btn = NeonButton(card1,
-            "🖱   GET MOUSE POSITION  ( 3 secunde countdown )",
-            self._start_capture, color=C["accent"], w=440, h=40)
-        self.cap_btn.pack(padx=16, pady=(0, 14), fill="x")
+    # ── Bind mousewheel recursiv pe toate widget-urile ─────────
+    def _bind_scroll(self, w):
+        w.bind("<MouseWheel>",
+               lambda e: self._cvs.yview_scroll(
+                   int(-1*(e.delta/120)), "units"))
+        w.bind("<Button-4>",
+               lambda e: self._cvs.yview_scroll(-1, "units"))
+        w.bind("<Button-5>",
+               lambda e: self._cvs.yview_scroll(1, "units"))
+        for ch in w.winfo_children():
+            self._bind_scroll(ch)
 
-        sp(10)
+    # ── Card helper ────────────────────────────────────────────
+    def _card(self, parent, **kw):
+        w = tk.Frame(parent, bg=S1,
+                     highlightthickness=1,
+                     highlightbackground=BORD, **kw)
+        w.pack(fill="x", padx=14, pady=(0, 12))
+        return tk.Frame(w, bg=S1)
 
-        # ══ SECTION 2: CULOARE ═════════════════════════════════
-        self._sec(P, "02", "CULOARE TINTA", "🎨")
-        sp(8)
+    # ── Section label ──────────────────────────────────────────
+    def _sec(self, parent, icon, title):
+        f = tk.Frame(parent, bg=BG)
+        f.pack(fill="x", padx=14, pady=(12, 5))
+        tk.Label(f, text=icon, fg=ACC2, bg=BG,
+                 font=(FN, 10)).pack(side="left", padx=(0, 6))
+        tk.Label(f, text=title, fg=TXT, bg=BG,
+                 font=(FN, 10, "bold")).pack(side="left")
+        tk.Frame(f, bg=BORD, height=1).pack(
+            side="left", fill="x", expand=True, padx=(8, 0))
 
-        card2 = self._card(P)
-        rgb_row = tk.Frame(card2, bg=C["panel"])
-        rgb_row.pack(fill="x", padx=16, pady=(14, 8))
+    # ── All content ────────────────────────────────────────────
+    def _content(self, P):
+        # ══ ROW 1: Coordonate + Culoare (side by side) ══════════
+        self._sec(P, "🎯", "Coordonate  &  Culoare")
+        row1 = tk.Frame(P, bg=BG)
+        row1.pack(fill="x", padx=14, pady=(0, 12))
 
-        self.r_f = InputField(rgb_row, "R", "255", 5)
-        self.r_f.pack(side="left", padx=(0, 8))
-        self.g_f = InputField(rgb_row, "G", "0", 5)
-        self.g_f.pack(side="left", padx=(0, 8))
-        self.b_f = InputField(rgb_row, "B", "0", 5)
-        self.b_f.pack(side="left", padx=(0, 16))
-        self.swatch = ColorSwatch(rgb_row, size=38)
-        self.swatch.pack(side="left")
+        # Card Coordonate
+        cc = tk.Frame(row1, bg=S1,
+                      highlightthickness=1,
+                      highlightbackground=BORD)
+        cc.pack(side="left", fill="both", expand=True, padx=(0, 6))
+        ccc = tk.Frame(cc, bg=S1)
+        ccc.pack(fill="both", padx=12, pady=12)
 
-        self.color_lbl = tk.Label(card2, text="Nicio culoare capturata.",
-                                  fg=C["text3"], bg=C["panel"], font=FS)
-        self.color_lbl.pack(anchor="w", padx=16, pady=(0, 10))
+        xy = tk.Frame(ccc, bg=S1)
+        xy.pack(fill="x", pady=(0, 8))
+        self.xf = Field(xy, "X  (pixeli)", "0", 7)
+        self.xf.pack(side="left", padx=(0, 10))
+        self.yf = Field(xy, "Y  (pixeli)", "0", 7)
+        self.yf.pack(side="left")
 
-        self.sample_btn = NeonButton(card2,
-            "🎨   SAMPLE COLOUR AT CAPTURED PIXEL",
-            self._sample_color, color=C["accent"], w=440, h=40)
-        self.sample_btn.pack(padx=16, pady=(0, 14), fill="x")
+        self._clbl_coord = tk.Label(ccc, text="Nicio coordonata.",
+                                    fg=TXT3, bg=S1, font=(FN, 8))
+        self._clbl_coord.pack(anchor="w", pady=(0, 8))
 
-        sp(10)
+        self._capbtn = mk_btn(ccc,
+            "🖱  Get Position  (3s)",
+            self._start_cap, bg=ACC, abg=ACCDK)
+        self._capbtn.pack(fill="x", ipady=7)
 
-        # ══ SECTION 3: SETARI ══════════════════════════════════
-        self._sec(P, "03", "SETARI DETECTIE", "⚙")
-        sp(8)
+        # Card Culoare
+        col = tk.Frame(row1, bg=S1,
+                       highlightthickness=1,
+                       highlightbackground=BORD)
+        col.pack(side="left", fill="both", expand=True)
+        colc = tk.Frame(col, bg=S1)
+        colc.pack(fill="both", padx=12, pady=12)
 
-        card3 = self._card(P)
-        s = tk.Frame(card3, bg=C["panel"])
-        s.pack(fill="x", padx=16, pady=14)
+        rgb = tk.Frame(colc, bg=S1)
+        rgb.pack(fill="x", pady=(0, 6))
+        self.rf = Field(rgb, "R", "255", 4); self.rf.pack(side="left", padx=(0,5))
+        self.gf = Field(rgb, "G", "0",   4); self.gf.pack(side="left", padx=(0,5))
+        self.bf = Field(rgb, "B", "0",   4); self.bf.pack(side="left", padx=(0,8))
+        self._sw = Swatch(rgb, 36); self._sw.pack(side="left")
 
-        row1 = tk.Frame(s, bg=C["panel"])
-        row1.pack(fill="x", pady=(0, 10))
-        self.tol_f   = InputField(row1, "Toleranta  ±",        "15",  7)
-        self.tol_f.pack(side="left", padx=(0, 20))
-        self.delay_f = InputField(row1, "Delay reactie  ( s )", "0.1", 7)
-        self.delay_f.pack(side="left")
+        self._clbl_col = tk.Label(colc, text="Nicio culoare.",
+                                  fg=TXT3, bg=S1, font=(FN, 8))
+        self._clbl_col.pack(anchor="w", pady=(0, 8))
 
-        row2 = tk.Frame(s, bg=C["panel"])
-        row2.pack(fill="x")
-        self.cd_f = InputField(row2, "Cooldown dupa actiune  ( s )", "3.0", 7)
-        self.cd_f.pack(side="left")
+        self._colbtn = mk_btn(colc,
+            "🎨  Sample Colour",
+            self._sample, bg=ACC, abg=ACCDK)
+        self._colbtn.pack(fill="x", ipady=7)
 
-        sp(10)
+        # ══ ROW 2: Setari detectie ════════════════════════════════
+        self._sec(P, "⚙️", "Setari Detectie")
+        sc = self._card(P)
+        sc.pack(fill="both", padx=12, pady=12)
 
-        # ══ SECTION 4: MOD NATURAL ═════════════════════════════
-        self._sec(P, "04", "MOD NATURAL", "🎲")
-        sp(8)
+        srow = tk.Frame(sc, bg=S1)
+        srow.pack(fill="x")
+        self.tolf  = Field(srow, "Toleranta  ±",        "15",  6)
+        self.tolf.pack(side="left", padx=(0, 16))
+        self.dlf   = Field(srow, "Delay reactie  (s)",  "0.1", 6)
+        self.dlf.pack(side="left", padx=(0, 16))
+        self.cdf   = Field(srow, "Cooldown  (s)",       "3.0", 6)
+        self.cdf.pack(side="left")
 
-        card4 = self._card(P)
-        nat = tk.Frame(card4, bg=C["panel"])
-        nat.pack(fill="x", padx=16, pady=14)
+        # ══ ROW 3: Mod Natural ════════════════════════════════════
+        self._sec(P, "🎲", "Mod Natural")
+        nc = self._card(P)
+        nc.pack(fill="both", padx=12, pady=12)
 
-        nat_top = tk.Frame(nat, bg=C["panel"])
-        nat_top.pack(fill="x")
+        natrow = tk.Frame(nc, bg=S1)
+        natrow.pack(fill="x")
 
-        nat_txt = tk.Frame(nat_top, bg=C["panel"])
-        nat_txt.pack(side="left", expand=True, fill="x")
-        tk.Label(nat_txt, text="8% sansa sa sara o detectie",
-                 fg=C["text"], bg=C["panel"],
-                 font=("Consolas", 11, "bold")).pack(anchor="w")
-        tk.Label(nat_txt,
-                 text="Programul ignora intentionat ~1 din 12 detectii\n"
-                      "pentru a parea mai natural si mai putin bot.",
-                 fg=C["text2"], bg=C["panel"],
-                 font=FS, justify="left").pack(anchor="w", pady=(3, 0))
+        natleft = tk.Frame(natrow, bg=S1)
+        natleft.pack(side="left", fill="x", expand=True)
+        tk.Label(natleft, text="8% sansa sa sara o detectie",
+                 fg=TXT, bg=S1,
+                 font=(FN, 10, "bold")).pack(anchor="w")
+        tk.Label(natleft,
+                 text="Ignorare intentionata ~1/12 detectii — apare mai uman.",
+                 fg=TXT2, bg=S1,
+                 font=(FN, 8)).pack(anchor="w", pady=(2, 0))
 
-        self.toggle = ToggleSwitch(nat_top, on_toggle=self._on_natural)
-        self.toggle.pack(side="right", padx=(14, 0))
+        self._tog = Toggle(natrow, cb=self._on_nat)
+        self._tog.pack(side="right", padx=(12, 0))
 
-        self.nat_lbl = tk.Label(nat, text="STATUS: DEZACTIVAT",
-                                fg=C["text3"], bg=C["panel"],
-                                font=("Consolas", 8, "bold"))
-        self.nat_lbl.pack(anchor="w", pady=(10, 0))
+        self._natlbl = tk.Label(nc, text="Status: Dezactivat",
+                                fg=TXT3, bg=S1, font=(FN, 8))
+        self._natlbl.pack(anchor="w", pady=(8, 0))
 
-        sp(10)
+        # ══ ROW 4: Control ════════════════════════════════════════
+        self._sec(P, "▶", "Control Macro")
+        bc = self._card(P)
+        bc.pack(fill="both", padx=12, pady=12)
 
-        # ══ SECTION 5: CONTROL ═════════════════════════════════
-        self._sec(P, "05", "CONTROL MACRO", "▶")
-        sp(8)
+        brow = tk.Frame(bc, bg=S1)
+        brow.pack(fill="x")
 
-        card5 = self._card(P)
-        btns = tk.Frame(card5, bg=C["panel"])
-        btns.pack(padx=16, pady=14)
+        self._startbtn = mk_btn(brow, "▶   START MACRO",
+            self._start, bg=ACC, abg=ACCDK)
+        self._startbtn.pack(side="left", fill="x",
+                            expand=True, ipady=10, padx=(0, 8))
 
-        self.start_btn = NeonButton(btns, "▶   START MACRO",
-            self._start_macro, color=C["green"], w=210, h=48)
-        self.start_btn.pack(side="left", padx=(0, 10))
+        self._stopbtn = mk_btn(brow, "■   STOP",
+            self._stop, bg=REDDK, fg=RED,
+            abg="#6B2222", dfg=TXT3, state="disabled")
+        self._stopbtn.pack(side="left", fill="x",
+                           expand=True, ipady=10)
 
-        self.stop_btn = NeonButton(btns, "■   STOP",
-            self._stop_macro, color=C["red"], w=180, h=48, enabled=False)
-        self.stop_btn.pack(side="left")
+        # ══ ROW 5: Log ════════════════════════════════════════════
+        self._sec(P, "📋", "Log Activitate")
+        lc = self._card(P)
+        lc.pack(fill="both", padx=12, pady=(0, 12))
 
-        sp(10)
+        strow = tk.Frame(lc, bg=S1)
+        strow.pack(fill="x", pady=(0, 8))
+        self._stlbl = tk.Label(strow, text="State: IDLE",
+                               fg=TXT3, bg=S1, font=(FN, 9, "bold"))
+        self._stlbl.pack(side="left")
 
-        # ══ SECTION LOG ════════════════════════════════════════
-        self._sec(P, "LOG", "ACTIVITATE", "📋")
-        sp(8)
-
-        card6 = self._card(P)
-
-        stat_row = tk.Frame(card6, bg=C["panel"])
-        stat_row.pack(fill="x", padx=16, pady=(10, 6))
-        self.catch_lbl = tk.Label(stat_row, text="CATCHES: 0",
-                                  fg=C["yellow"], bg=C["panel"],
-                                  font=("Consolas", 9, "bold"))
-        self.catch_lbl.pack(side="left")
-        self.state_lbl = tk.Label(stat_row, text="STATE: IDLE",
-                                  fg=C["text3"], bg=C["panel"],
-                                  font=("Consolas", 9, "bold"))
-        self.state_lbl.pack(side="right")
-
-        self.log = tk.Text(card6,
-            bg=C["bg2"], fg=C["text2"], font=FS,
+        lf = tk.Frame(lc, bg=S2,
+                      highlightthickness=1,
+                      highlightbackground=BORD)
+        lf.pack(fill="both")
+        self._log_w = tk.Text(lf,
+            bg=S2, fg=TXT2, font=("Consolas", 8),
             relief="flat", state="disabled", wrap="word",
-            bd=0, height=10, selectbackground=C["accent_dim"],
-            insertbackground=C["accent"])
-        self.log.pack(fill="both", padx=16, pady=(0, 14))
+            bd=6, height=10, selectbackground=S3)
+        self._log_w.pack(fill="both")
 
-        self.log.tag_config("ok",     foreground=C["green"])
-        self.log.tag_config("warn",   foreground=C["yellow"])
-        self.log.tag_config("error",  foreground=C["red"])
-        self.log.tag_config("dim",    foreground=C["text3"])
-        self.log.tag_config("accent", foreground=C["accent"])
-        self.log.tag_config("purple", foreground=C["purple"])
+        for tag, col in [("ok", GRN), ("warn", YEL), ("err", RED),
+                         ("dim", TXT3), ("hi", ACC2), ("pur", ACC2)]:
+            self._log_w.tag_config(tag, foreground=col)
 
-        sp(4)
+        gap(P, 10)
 
-        # Footer
-        tk.Label(root,
-            text="⚠  FAILSAFE: muta mouse-ul in coltul stanga-sus pentru oprire urgenta",
-            fg=C["text3"], bg=C["bg"], font=FS).pack(pady=(4, 8))
+        # Re-bind scroll after all widgets are created
+        self.root.after(100, lambda: self._bind_scroll(self._frm))
 
-        self._log("GamerMacro Pro v2.1 pornit.", "accent")
-        self._log("Seteaza coordonatele, culoarea, apoi START.", "dim")
+        self._log("GamerMacro Pro v4.0 ready.", "hi")
+        self._log("Seteaza coordonatele si culoarea, apoi START.", "dim")
         self._log("Sfat: arunca undita INAINTE de a apasa START.", "dim")
 
-    # ── UI helpers ─────────────────────────────────────────────────────────────
-    def _sec(self, parent, num, title, icon=""):
-        f = tk.Frame(parent, bg=C["bg"])
-        f.pack(fill="x", padx=18)
-        tk.Label(f, text=f"[ {num} ]", fg=C["text3"],
-                 bg=C["bg"], font=("Consolas", 8, "bold")).pack(side="left",
-                                                                 padx=(0, 8))
-        tk.Label(f, text=f"{icon}  {title}",
-                 fg=C["accent"], bg=C["bg"],
-                 font=("Consolas", 9, "bold")).pack(side="left")
-        tk.Frame(f, bg=C["border2"], height=1).pack(
-            side="left", fill="x", expand=True, padx=(10, 0))
-
-    def _card(self, parent):
-        outer = tk.Frame(parent, bg=C["border2"], padx=1, pady=1)
-        outer.pack(fill="x", padx=18)
-        inner = tk.Frame(outer, bg=C["panel"])
-        inner.pack(fill="both")
-        return inner
-
-    # ── Log ────────────────────────────────────────────────────────────────────
+    # ── Log ────────────────────────────────────────────────────
     def _log(self, msg, tag="dim"):
         ts = time.strftime("%H:%M:%S")
-        self.log.configure(state="normal")
-        self.log.insert("end", f"[{ts}]  {msg}\n", tag)
-        self.log.see("end")
-        self.log.configure(state="disabled")
+        self._log_w.configure(state="normal")
+        self._log_w.insert("end", f"[{ts}]  {msg}\n", tag)
+        self._log_w.see("end")
+        self._log_w.configure(state="disabled")
 
-    # ── Capture position ───────────────────────────────────────────────────────
-    def _start_capture(self):
-        self.cap_btn.set_enabled(False)
+    def _set_state(self, s):
+        cols = {"IDLE": TXT3, "RESET": TXT3, "WATCH": ACC2, "RUNNING": GRN}
+        self.root.after(0, self._stlbl.config,
+            {"text": f"State: {s}", "fg": cols.get(s, TXT3)})
+
+    # ── Capture ────────────────────────────────────────────────
+    def _start_cap(self):
+        self._capbtn.config(state="disabled")
         self._cdown(3)
 
     def _cdown(self, n):
         if n > 0:
-            self.coord_lbl.config(
-                text=f"  Muta mouse-ul pe pixel…  {n}s", fg=C["yellow"])
+            self._clbl_coord.config(
+                text=f"Muta mouse-ul…  {n}s", fg=YEL)
             self.root.after(1000, self._cdown, n - 1)
         else:
             try:
                 x, y = pyautogui.position()
-                self.x_f.var.set(str(x))
-                self.y_f.var.set(str(y))
-                self.coord_lbl.config(
-                    text=f"  ✓  X = {x}   Y = {y}", fg=C["green"])
-                self._log(f"Coordonate capturate  →  X={x}  Y={y}", "ok")
+                self.xf.var.set(str(x))
+                self.yf.var.set(str(y))
+                self._clbl_coord.config(
+                    text=f"✓  X={x}  Y={y}", fg=GRN)
+                self._log(f"Coordonate → X={x}  Y={y}", "ok")
             except Exception as e:
-                self.coord_lbl.config(text=f"  ✗  {e}", fg=C["red"])
+                self._clbl_coord.config(text=f"Eroare: {e}", fg=RED)
             finally:
-                self.cap_btn.set_enabled(True)
+                self._capbtn.config(state="normal")
 
-    # ── Sample colour ──────────────────────────────────────────────────────────
-    def _sample_color(self):
+    # ── Sample ─────────────────────────────────────────────────
+    def _sample(self):
         try:
-            x = int(self.x_f.var.get())
-            y = int(self.y_f.var.get())
+            x = int(self.xf.var.get())
+            y = int(self.yf.var.get())
         except ValueError:
-            self._log("Coordonate invalide.", "error"); return
+            self._log("Coordonate invalide.", "err"); return
         try:
-            px = pyautogui.pixel(x, y)
-            r, g, b = px[0], px[1], px[2]
-            self.r_f.var.set(str(r))
-            self.g_f.var.set(str(g))
-            self.b_f.var.set(str(b))
-            self.swatch.set(r, g, b)
+            p = pyautogui.pixel(x, y)
+            r, g, b = p[0], p[1], p[2]
+            self.rf.var.set(str(r))
+            self.gf.var.set(str(g))
+            self.bf.var.set(str(b))
+            self._sw.update(r, g, b)
             hx = f"#{r:02x}{g:02x}{b:02x}"
-            self.color_lbl.config(
-                text=f"  ✓  RGB({r}, {g}, {b})   {hx}", fg=C["green"])
-            self._log(f"Culoare  →  RGB({r},{g},{b})  {hx}", "ok")
+            self._clbl_col.config(
+                text=f"✓  RGB({r},{g},{b})  {hx}", fg=GRN)
+            self._log(f"Culoare → RGB({r},{g},{b})  {hx}", "ok")
         except Exception as e:
-            self.color_lbl.config(text=f"  ✗  {e}", fg=C["red"])
-            self._log(f"Eroare: {e}", "error")
+            self._clbl_col.config(text=f"Eroare: {e}", fg=RED)
+            self._log(f"Eroare: {e}", "err")
 
-    # ── Natural toggle ─────────────────────────────────────────────────────────
-    def _on_natural(self, state: bool):
+    # ── Natural ────────────────────────────────────────────────
+    def _on_nat(self, state):
         self._natural = state
         if state:
-            self.nat_lbl.config(
-                text="STATUS: ACTIVAT  —  8% skip per detectie",
-                fg=C["purple"])
-            self._log("Mod Natural ACTIVAT (8% skip).", "purple")
+            self._natlbl.config(text="Status: Activat  —  8% skip", fg=ACC2)
+            self._log("Mod Natural ACTIVAT.", "pur")
         else:
-            self.nat_lbl.config(text="STATUS: DEZACTIVAT", fg=C["text3"])
+            self._natlbl.config(text="Status: Dezactivat", fg=TXT3)
             self._log("Mod Natural dezactivat.", "dim")
 
-    # ── Parse inputs ───────────────────────────────────────────────────────────
+    # ── Parse ──────────────────────────────────────────────────
     def _parse(self):
-        x     = int(self.x_f.var.get())
-        y     = int(self.y_f.var.get())
-        r     = int(self.r_f.var.get())
-        g     = int(self.g_f.var.get())
-        b     = int(self.b_f.var.get())
-        tol   = int(self.tol_f.var.get())
-        delay = float(self.delay_f.var.get())
-        cd    = float(self.cd_f.var.get())
+        x     = int(self.xf.var.get())
+        y     = int(self.yf.var.get())
+        r     = int(self.rf.var.get())
+        g     = int(self.gf.var.get())
+        b     = int(self.bf.var.get())
+        tol   = int(self.tolf.var.get())
+        delay = float(self.dlf.var.get())
+        cd    = float(self.cdf.var.get())
         sc    = pyautogui.size()
         if not (0 <= x < sc.width and 0 <= y < sc.height):
-            raise ValueError(f"Coordonate ({x},{y}) in afara ecranului.")
+            raise ValueError(f"({x},{y}) in afara ecranului.")
         return x, y, r, g, b, tol, delay, cd
 
-    # ── Macro loop ─────────────────────────────────────────────────────────────
-    def _watch(self, x, y, tr, tg, tb, tol, delay, cd, natural):
-        self._upstate("RESET")
-        state   = "RESET"
-        skipped = 0
+    # ── Loop ───────────────────────────────────────────────────
+    def _watch(self, x, y, tr, tg, tb, tol, delay, cd, nat):
+        self._set_state("RESET")
+        state = "RESET"; skip = 0
 
         while self._running:
             try:
-                px = pyautogui.pixel(x, y)
-                cr, cg, cb = px[0], px[1], px[2]
-                match = (abs(cr-tr) <= tol and
-                         abs(cg-tg) <= tol and
-                         abs(cb-tb) <= tol)
+                p = pyautogui.pixel(x, y)
+                cr, cg, cb = p[0], p[1], p[2]
+                hit = (abs(cr-tr)<=tol and
+                       abs(cg-tg)<=tol and
+                       abs(cb-tb)<=tol)
 
                 if state == "RESET":
-                    if not match:
-                        state = "WATCH"
-                        self._upstate("WATCH")
+                    if not hit:
+                        state = "WATCH"; self._set_state("WATCH")
 
-                elif state == "WATCH":
-                    if match:
-                        if natural and random.random() < 0.08:
-                            skipped += 1
-                            self.root.after(0, self._log,
-                                f"[skip #{skipped}] Mod natural — ignorat.", "purple")
-                            state = "RESET"
-                            self._upstate("RESET")
-                            time.sleep(self.POLL); continue
-
-                        self._catches += 1
-                        n = self._catches
+                elif state == "WATCH" and hit:
+                    if nat and random.random() < 0.08:
+                        skip += 1
                         self.root.after(0, self._log,
-                            f"[#{n}] Bobber!  RGB({cr},{cg},{cb})  "
-                            f"— delay {delay}s…", "warn")
-                        self.root.after(0, self.catch_lbl.config,
-                            {"text": f"CATCHES: {n}"})
+                            f"[skip #{skip}] Mod natural — ignorat.", "pur")
+                        state = "RESET"; self._set_state("RESET")
+                        time.sleep(self.POLL); continue
 
-                        if delay > 0: time.sleep(delay)
-                        if not self._running: break
+                    self._catches += 1
+                    n = self._catches
+                    self.root.after(0, self._log,
+                        f"[#{n}] Bobber!  RGB({cr},{cg},{cb})  delay {delay}s…",
+                        "warn")
+                    self.root.after(0, self._clbl.config,
+                        {"text": f"Catches: {n}"})
 
-                        pyautogui.rightClick()
-                        time.sleep(0.5)
-                        pyautogui.rightClick()
+                    if delay > 0: time.sleep(delay)
+                    if not self._running: break
 
-                        self.root.after(0, self._log,
-                            f"[#{n}] Re-aruncat. Cooldown {cd}s…", "ok")
-                        time.sleep(cd)
-                        state = "RESET"
-                        self._upstate("RESET")
+                    pyautogui.rightClick()
+                    time.sleep(0.5)
+                    pyautogui.rightClick()
+
+                    self.root.after(0, self._log,
+                        f"[#{n}] Re-aruncat. Cooldown {cd}s…", "ok")
+                    time.sleep(cd)
+                    state = "RESET"; self._set_state("RESET")
 
             except pyautogui.FailSafeException:
                 self.root.after(0, self._log,
-                    "FAILSAFE! Mouse in colt stanga-sus.", "error")
-                break
+                    "FAILSAFE! Mouse in colt.", "err"); break
             except Exception as e:
-                self.root.after(0, self._log, f"Eroare: {e}", "error"); break
+                self.root.after(0, self._log, f"Eroare: {e}", "err"); break
 
             time.sleep(self.POLL)
 
         self._running = False
-        self.root.after(0, self._stopped)
+        self.root.after(0, self._done)
 
-    def _upstate(self, s):
-        col = {
-            "RESET": C["text3"],
-            "WATCH": C["accent"],
-            "IDLE":  C["text3"],
-        }.get(s, C["text3"])
-        self.root.after(0, self.state_lbl.config,
-                        {"text": f"STATE: {s}", "fg": col})
-
-    # ── Start / Stop ───────────────────────────────────────────────────────────
-    def _start_macro(self):
+    # ── Start / Stop ───────────────────────────────────────────
+    def _start(self):
         if self._running: return
-        try:
-            args = self._parse()
+        try: args = self._parse()
         except ValueError as e:
-            self._log(f"Eroare input: {e}", "error"); return
+            self._log(f"Input: {e}", "err"); return
 
         self._running = True
         self._catches = 0
-        self.catch_lbl.config(text="CATCHES: 0")
-        self._set_ui(True)
-
-        x, y, r, g, b, tol, delay, cd = args
-        nat = self._natural
+        self._clbl.config(text="Catches: 0")
+        self._ui(True)
+        x,y,r,g,b,tol,delay,cd = args
         self._log(
-            f"START  ({x},{y})  RGB({r},{g},{b})  ±{tol}  "
-            f"delay={delay}s  cd={cd}s  nat={'ON' if nat else 'OFF'}",
-            "accent")
-
+            f"START ({x},{y}) RGB({r},{g},{b}) ±{tol} "
+            f"delay={delay}s cd={cd}s nat={'ON' if self._natural else 'OFF'}",
+            "hi")
         self._thread = threading.Thread(
             target=self._watch,
-            args=(x, y, r, g, b, tol, delay, cd, nat),
+            args=(x,y,r,g,b,tol,delay,cd,self._natural),
             daemon=True)
         self._thread.start()
 
-    def _stop_macro(self):
+    def _stop(self):
         self._running = False
-        self._log("Oprire solicitata…", "warn")
+        self._log("Oprire…", "warn")
 
-    def _stopped(self):
-        self._set_ui(False)
-        self._upstate("IDLE")
+    def _done(self):
+        self._ui(False)
+        self._set_state("IDLE")
         self._log("Macro oprit.", "dim")
 
-    def _set_ui(self, running: bool):
-        self.orb.set_active(running)
-        self.status_lbl.config(
-            text="RUNNING" if running else "IDLE",
-            fg=C["green"] if running else C["text3"])
-        self.start_btn.set_enabled(not running)
-        self.stop_btn.set_enabled(running)
-        self.cap_btn.set_enabled(not running)
-        self.sample_btn.set_enabled(not running)
+    def _ui(self, run):
+        self._status.config(
+            text="⬤  RUNNING" if run else "⬤  IDLE",
+            fg=GRN if run else TXT3)
+        self._startbtn.config(
+            state="disabled" if run else "normal",
+            bg=S3 if run else ACC)
+        self._stopbtn.config(
+            state="normal" if run else "disabled",
+            bg=RED if run else REDDK,
+            fg=TXT if run else RED)
+        self._capbtn.config(state="disabled" if run else "normal")
+        self._colbtn.config(state="disabled" if run else "normal")
 
     def on_close(self):
         self._running = False
@@ -649,7 +582,7 @@ class FishBotApp:
 
 def main():
     root = tk.Tk()
-    app  = FishBotApp(root)
+    app = App(root)
     root.protocol("WM_DELETE_WINDOW", app.on_close)
     root.mainloop()
 
