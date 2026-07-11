@@ -20,7 +20,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install pyautogui pillow pyinstaller
+        run: pip install pyautogui pillow pynput pyinstaller
 
       - name: Build EXE
         run: pyinstaller --onefile --windowed --name "GamerMacroPro" gamermacro.py

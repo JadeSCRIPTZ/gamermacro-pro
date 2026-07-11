@@ -5,29 +5,15 @@ Stabil, fara taburi, fara crash-uri garantat.
 import tkinter as tk
 import threading, time, random, sys
 
-try:
-    import pyautogui
-    pyautogui.FAILSAFE = True
-    pyautogui.PAUSE = 0
-except ImportError:
-    import subprocess
-    subprocess.call([sys.executable, "-m", "pip", "install", "pyautogui", "pillow"])
-    import pyautogui
-    pyautogui.FAILSAFE = True
-    pyautogui.PAUSE = 0
+import pyautogui
+pyautogui.FAILSAFE = True
+pyautogui.PAUSE = 0
 
-try:
-    from pynput.mouse import Button, Controller as MC
-    _mouse = MC()
-    def right_click():
-        _mouse.click(Button.right, 1)
-except ImportError:
-    import subprocess
-    subprocess.call([sys.executable, "-m", "pip", "install", "pynput"])
-    from pynput.mouse import Button, Controller as MC
-    _mouse = MC()
-    def right_click():
-        _mouse.click(Button.right, 1)
+from pynput.mouse import Button, Controller as MC
+_mouse = MC()
+
+def right_click():
+    _mouse.click(Button.right, 1)
 
 # ── Culori ─────────────────────────────────────────────────────
 BG   = "#1C1917"
