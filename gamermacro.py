@@ -229,7 +229,13 @@ class App:
         self._log_w    = None
 
         # Statistici pe timp
-        self._session_catches = []  # timestamps ale fiecarui catch
+        self._session_catches = []
+
+        # Pre-initializare labels statistici (create in _build_stats_tab)
+        for attr in ['_s_time','_s_total','_s_recal','_r_min','_r_30m','_r_1h',
+                     '_p_30m','_p_1h','_p_8h','_p_24h','_avg_time','_recal_rate',
+                     '_graph_lbl','_recal_lbl']:
+            setattr(self, attr, None)
 
         self._setup_window()
         self._build()
@@ -839,8 +845,9 @@ class App:
                         nr = self._recals
                         self.root.after(0, self._log,
                             f"[RECAL #{nr}] Timeout {timeout_sec}s — retrag si re-arunc!", "pur")
-                        self.root.after(0, self._recal_lbl.config,
-                            {"text": f"Recalibrari: {nr}"})
+                        if self._recal_lbl:
+                            self.root.after(0, self._recal_lbl.config,
+                                {"text": f"Recalibrari: {nr}"})
 
                         right_click()        # Trage undita
                         time.sleep(0.5)
@@ -914,7 +921,8 @@ class App:
         self._start_ts = time.time()
         self._session_catches.clear()
         self._catch_lbl.config(text="Catches: 0")
-        self._recal_lbl.config(text="Recalibrari: 0")
+        if self._recal_lbl:
+            self._recal_lbl.config(text="Recalibrari: 0")
         self._ui(True)
 
         x,y,r,g,b,tol,delay,cd,use_to,to_sec = args
@@ -961,6 +969,9 @@ class App:
         self.root.after(5000, self._update_stats_job)
 
     def _compute_stats(self):
+        # Nu actualiza daca labels nu sunt inca create
+        if self._s_time is None:
+            return
         now = time.time()
         catches = self._session_catches
         total   = len(catches)
@@ -1017,6 +1028,8 @@ class App:
         self._update_graph(catches, now)
 
     def _update_graph(self, catches, now):
+        if self._graph_lbl is None:
+            return
         bars = []
         max_val = 1
         for i in range(10, 0, -1):
