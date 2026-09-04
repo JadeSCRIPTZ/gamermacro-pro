@@ -491,6 +491,10 @@ class App:
         self.dlf.pack(side="left")
         self.cdf  = Inp(c, "Cooldown dupa aruncare (s)", "3.0", 7)
         self.cdf.pack(anchor="w")
+        self.pwf  = Inp(c, "Asteapta dupa detectie (s)  — 0 = dezactivat", "0", 7)
+        self.pwf.pack(anchor="w", pady=(6,0))
+        tk.Label(c, text="Dupa prima detectie, ignora X secunde, apoi actioneaza la urmatoarea.",
+                 fg=TXT3, bg=S1, font=(FN,7)).pack(anchor="w")
 
         # ── Timeout recalibrare ───────────────────────────────
         c2 = card()
@@ -695,14 +699,16 @@ class App:
         cd  = float(self.cdf.var.get())
         to  = float(self.tof.var.get()) if self._timeout else 0
         sc  = pyautogui.size()
+        pw  = float(self.pwf.var.get())
         if not (0 <= x < sc.width and 0 <= y < sc.height):
             raise ValueError(f"({x},{y}) in afara ecranului.")
-        return x, y, r, g, b, tol, dl, cd, to
+        return x, y, r, g, b, tol, dl, cd, to, pw
 
-    def _loop(self, x, y, tr, tg, tb, tol, delay, cd, to, nat):
+    def _loop(self, x, y, tr, tg, tb, tol, delay, cd, to, pw, nat):
         self._upst("RESET")
         state = "RESET"
-        watch_since = None
+        watch_since  = None
+        pre_wait_end = None   # timestamp pana cand ignora detectiile
         skip = 0
 
         while self._running:
@@ -740,6 +746,18 @@ class App:
                         continue
 
                     if hit:
+                        # ── Pre-wait activ: ignora pana expira ───────────────
+                        if pre_wait_end is not None:
+                            if time.time() < pre_wait_end:
+                                # Inca in perioada de asteptare — ignora
+                                time.sleep(self.POLL)
+                                continue
+                            else:
+                                # Pre-wait expirat → acum actioneaza
+                                pre_wait_end = None
+                                self.root.after(0, self._log,
+                                    "Pre-wait expirat — actionez!", "ok")
+
                         if nat and random.random() < 0.08:
                             skip += 1
                             self.root.after(0, self._log,
@@ -747,6 +765,16 @@ class App:
                             state = "RESET"
                             watch_since = None
                             self._upst("RESET")
+                            time.sleep(self.POLL)
+                            continue
+
+                        # ── Prima detectie cu pre-wait activ ─────────────────
+                        if pw > 0 and pre_wait_end is None:
+                            pre_wait_end = time.time() + pw
+                            self.root.after(0, self._log,
+                                f"Detectat! Astept {pw}s inainte sa actionez…",
+                                "warn")
+                            self._upst("PREWAIT")
                             time.sleep(self.POLL)
                             continue
 
@@ -773,6 +801,7 @@ class App:
                         time.sleep(cd)
                         state = "RESET"
                         watch_since = None
+                        pre_wait_end = None
                         self._upst("RESET")
 
             except pyautogui.FailSafeException:
@@ -789,7 +818,7 @@ class App:
         self.root.after(0, self._done)
 
     def _upst(self, s):
-        cols = {"IDLE": TXT3, "RESET": TXT3, "WATCH": BLUE2}
+        cols = {"IDLE": TXT3, "RESET": TXT3, "WATCH": BLUE2, "PREWAIT": YEL}
         c = cols.get(s, TXT3)
         self.root.after(0, self._stlbl.config, {"text": s, "fg": c})
         self.root.after(0, self._sidebar_status.config,
@@ -814,17 +843,18 @@ class App:
         self._rlbl.config(text="")
         self._ui(True)
 
-        x, y, r, g, b, tol, dl, cd, to = args
+        x, y, r, g, b, tol, dl, cd, to, pw = args
         nat = self._natural
         self._log(
             f"START  ({x},{y})  RGB({r},{g},{b})  ±{tol}  "
             f"delay={dl}s  cd={cd}s  "
             f"to={'ON '+str(to)+'s' if to else 'OFF'}  "
+            f"pw={'ON '+str(pw)+'s' if pw else 'OFF'}  "
             f"nat={'ON' if nat else 'OFF'}", "hi")
 
         self._thread = threading.Thread(
             target=self._loop,
-            args=(x, y, r, g, b, tol, dl, cd, to, nat),
+            args=(x, y, r, g, b, tol, dl, cd, to, pw, nat),
             daemon=True)
         self._thread.start()
 
