@@ -22,6 +22,7 @@ def right_click():
 BG      = "#0F1117"   # fundal principal
 SIDEBAR = "#141820"   # sidebar stanga
 PANEL   = "#1A1F2E"   # card/panel
+S1      = "#1A1F2E"   # alias PANEL (backward compat)
 PANEL2  = "#1E2438"   # panel mai deschis
 INPUT   = "#252D42"   # input background
 BORD    = "#2D3554"   # border
