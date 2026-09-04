@@ -498,23 +498,16 @@ class App:
 
         # ── Timeout recalibrare ───────────────────────────────
         c2 = card()
-        section(c2, "TIMEOUT RECALIBRARE", PANEL)
-
-        tr = tk.Frame(c2, bg=PANEL); tr.pack(fill="x", pady=(0,8))
-        self._to_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(tr,
-            text="Activ — retrage si re-aruncă dacă nu vede culoarea",
-            variable=self._to_var, bg=PANEL, fg=TXT,
-            selectcolor=INPUT, activebackground=PANEL,
-            activeforeground=TXT, font=(FN,9),
-            command=self._on_to).pack(anchor="w")
-
+        section(c2, "RECALIBRARE AUTOMATA", PANEL)
+        tk.Label(c2,
+            text="Daca nu detecteaza pixelul in X secunde dupa ce a aruncat → retrage si re-arunca automat.",
+            fg=TXT3, bg=PANEL, font=(FN,7), wraplength=380, justify="left"
+        ).pack(anchor="w", pady=(0,6))
         tr2 = tk.Frame(c2, bg=PANEL); tr2.pack(fill="x")
-        self.tof = Inp(tr2, "Timeout (secunde)", "15", 6)
+        self.tof = Inp(tr2, "Recalibrare dupa (s)  — 0 = dezactivat", "0", 6)
         self.tof.pack(side="left")
-        self._tolbl = tk.Label(tr2, text="   Dezactivat",
-                               fg=TXT3, bg=PANEL, font=(FN,8))
-        self._tolbl.pack(side="left", padx=8)
+        tk.Label(tr2, text="   ex: 15 = daca in 15s nu vede culoarea, re-arunca",
+                 fg=TXT3, bg=PANEL, font=(FN,7)).pack(side="left", padx=8)
 
         # ── Mod natural ───────────────────────────────────────
         c3 = card()
@@ -630,15 +623,6 @@ class App:
     # ─────────────────────────────────────────────────────────
     #  LOGICA
     # ─────────────────────────────────────────────────────────
-    def _on_to(self):
-        self._timeout = self._to_var.get()
-        if self._timeout:
-            self._tolbl.config(text="   Activat", fg=PURP2)
-            self._log("Timeout recalibrare ACTIVAT.", "pur")
-        else:
-            self._tolbl.config(text="   Dezactivat", fg=TXT3)
-            self._log("Timeout dezactivat.", "dim")
-
     def _on_nat(self):
         self._natural = self._nat_var.get()
         if self._natural:
@@ -697,7 +681,7 @@ class App:
         tol = int(self.tolf.var.get())
         dl  = float(self.dlf.var.get())
         cd  = float(self.cdf.var.get())
-        to  = float(self.tof.var.get()) if self._timeout else 0
+        to  = float(self.tof.var.get())
         sc  = pyautogui.size()
         pw  = float(self.pwf.var.get())
         if not (0 <= x < sc.width and 0 <= y < sc.height):
