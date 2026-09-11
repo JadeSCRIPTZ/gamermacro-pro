@@ -211,6 +211,7 @@ class App:
         self.root      = root
         self._running  = False
         self._natural  = False
+        self._autocast = False
         self._timeout  = False
         self._catches  = 0
         self._recals   = 0
@@ -510,6 +511,26 @@ class App:
         tk.Label(tr2, text="   ex: 15 = daca in 15s nu vede culoarea, re-arunca",
                  fg=TXT3, bg=PANEL, font=(FN,7)).pack(side="left", padx=8)
 
+        # ── Auto-recast ────────────────────────────────────────
+        c3a = card()
+        section(c3a, "AUTO-RECAST", PANEL)
+        self._autocast_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(c3a,
+            text="Recast automat (o singura aruncare dupa catch)",
+            variable=self._autocast_var, bg=PANEL, fg=TXT,
+            selectcolor=INPUT, activebackground=PANEL,
+            activeforeground=TXT, font=(FN,9),
+            command=self._on_autocast).pack(anchor="w")
+        self._autocastlbl = tk.Label(c3a, text="Status: Dezactivat (2x click-uri)",
+                                     fg=TXT3, bg=PANEL, font=(FN,8))
+        self._autocastlbl.pack(anchor="w", pady=(4,0))
+        tk.Label(c3a,
+            text="Daca activat → o singura aruncare. Daca dezactivat → 2x click-uri (normal).",
+            fg=TXT3, bg=PANEL, font=(FN,7), wraplength=380, justify="left"
+        ).pack(anchor="w", pady=(4,0))
+
+        gap(12)
+
         # ── Mod natural ───────────────────────────────────────
         c3 = card()
         section(c3, "MOD NATURAL", PANEL)
@@ -624,6 +645,15 @@ class App:
     # ─────────────────────────────────────────────────────────
     #  LOGICA
     # ─────────────────────────────────────────────────────────
+    def _on_autocast(self):
+        self._autocast = self._autocast_var.get()
+        if self._autocast:
+            self._autocastlbl.config(text="Status: Activat (1x click)", fg=BLUE2)
+            self._log("Auto-Recast ACTIVAT — o singura aruncare.", "pur")
+        else:
+            self._autocastlbl.config(text="Status: Dezactivat (2x click-uri)", fg=TXT3)
+            self._log("Auto-Recast dezactivat — 2x click-uri normale.", "dim")
+
     def _on_nat(self):
         self._natural = self._nat_var.get()
         if self._natural:
@@ -721,9 +751,13 @@ class App:
                             {"text": f"Recal: {nr}"})
                         self.root.after(0, self._hdr_recal.config,
                             {"text": f"Recal: {nr}"})
-                        right_click()
-                        time.sleep(0.5)
-                        right_click()
+                        # ── Auto-recast: 1 click (daca activat) vs 2 clicks (normal) ──
+                        if self._autocast:
+                            right_click()
+                        else:
+                            right_click()
+                            time.sleep(0.5)
+                            right_click()
                         time.sleep(cd)
                         state = "RESET"
                         watch_since = None
@@ -777,12 +811,17 @@ class App:
                         if not self._running:
                             break
 
-                        right_click()
-                        time.sleep(0.5)
-                        right_click()
-
-                        self.root.after(0, self._log,
-                            f"[#{n}] Re-aruncat! Cooldown {cd}s…", "ok")
+                        # ── Auto-recast: 1 click (daca activat) vs 2 clicks (normal) ──
+                        if self._autocast:
+                            right_click()
+                            self.root.after(0, self._log,
+                                f"[#{n}] Recast (1x click)! Cooldown {cd}s…", "ok")
+                        else:
+                            right_click()
+                            time.sleep(0.5)
+                            right_click()
+                            self.root.after(0, self._log,
+                                f"[#{n}] Re-aruncat! Cooldown {cd}s…", "ok")
                         time.sleep(cd)
                         state = "RESET"
                         watch_since = None
