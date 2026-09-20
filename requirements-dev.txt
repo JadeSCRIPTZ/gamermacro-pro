@@ -1,0 +1,12 @@
+# Development requirements for building GamerMacro Pro
+
+# Core dependencies
+pyautogui>=0.9.53
+pynput>=1.7.6
+
+# Build tools
+pyinstaller>=5.13.0
+pillow>=9.0.0
+
+# Optional: For creating installers
+# nsis (Windows only - download separately from https://nsis.sourceforge.io/)
