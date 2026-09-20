@@ -1,12 +1,21 @@
 """
-GamerMacro Pro — Fishing Edition v6.0
+GamerMacro Pro — Fishing Edition v6.1
+Modern GUI Upgrade: Dark theme + green accents + profile saving
 Layout: Sidebar stanga + Continut dreapta (ca Claude)
-Tema: Dark grey + albastru-mov
-Redimensionabil
+Tema: Dark grey + verde neon (Modern Premium)
+Redimensionabil + Transparente + Smooth animations
 """
 import tkinter as tk
 from tkinter import font as tkfont
 import threading, time, random, sys
+import json
+from pathlib import Path
+from datetime import datetime
+
+# Import modern GUI components
+from gamermacro_modern_upgrade import (
+    ModernTheme, ProfileManager, ModernComponents, init_profile_manager
+)
 
 import pyautogui
 pyautogui.FAILSAFE = True
@@ -18,29 +27,29 @@ _mouse = MC()
 def right_click():
     _mouse.click(Button.right, 1)
 
-# ── Palette: dark grey + blue-violet ──────────────────────────
-BG      = "#0F1117"   # fundal principal
-SIDEBAR = "#141820"   # sidebar stanga
-PANEL   = "#1A1F2E"   # card/panel
-S1      = "#1A1F2E"   # alias PANEL (backward compat)
-PANEL2  = "#1E2438"   # panel mai deschis
-INPUT   = "#252D42"   # input background
-BORD    = "#2D3554"   # border
-BORD2   = "#3D4870"   # border accent
-BLUE    = "#4F8EF7"   # albastru principal
-BLUE2   = "#7AB3FF"   # albastru deschis
-BLUED   = "#1A3A7A"   # albastru inchis
-PURP    = "#7C5CFC"   # violet
-PURP2   = "#A78BFA"   # violet deschis
-PURPD   = "#2D1B69"   # violet inchis
-GRN     = "#34D399"   # verde
-GRNDK   = "#064E3B"   # verde inchis
-RED     = "#F87171"   # rosu
-REDDK   = "#7F1D1D"   # rosu inchis
-YEL     = "#FBBF24"   # galben
-TXT     = "#E8EEFF"   # text principal
-TXT2    = "#8B9BB4"   # text secundar
-TXT3    = "#454E6A"   # text muted
+# ── Modern Color Palette ───────────────────────────────────────
+BG      = ModernTheme.COLORS["bg_primary"]
+SIDEBAR = ModernTheme.COLORS["bg_secondary"]
+PANEL   = ModernTheme.COLORS["bg_tertiary"]
+S1      = PANEL
+PANEL2  = ModernTheme.COLORS["bg_secondary"]
+INPUT   = ModernTheme.COLORS["bg_tertiary"]
+BORD    = ModernTheme.COLORS["border"]
+BORD2   = ModernTheme.COLORS["border_accent"]
+BLUE    = ModernTheme.COLORS["accent_green"]       # Acum verde
+BLUE2   = ModernTheme.COLORS["accent_green_light"]
+BLUED   = ModernTheme.COLORS["accent_green_dark"]
+PURP    = ModernTheme.COLORS["accent_green"]       # Verde pt consistenta
+PURP2   = ModernTheme.COLORS["accent_green_light"]
+PURPD   = ModernTheme.COLORS["accent_green_dark"]
+GRN     = ModernTheme.COLORS["accent_green"]
+GRNDK   = ModernTheme.COLORS["accent_green_dark"]
+RED     = ModernTheme.COLORS["error"]
+REDDK   = "#7F1D1D"
+YEL     = ModernTheme.COLORS["warning"]
+TXT     = ModernTheme.COLORS["text_primary"]
+TXT2    = ModernTheme.COLORS["text_secondary"]
+TXT3    = ModernTheme.COLORS["text_tertiary"]
 FN      = "Segoe UI"
 POLL    = 0.05
 
@@ -219,6 +228,10 @@ class App:
         self._start_ts = None
         self._ts_list  = []
         self._cur_tab  = None
+        
+        # Initialize profile manager
+        self.profile_mgr = init_profile_manager()
+        current_settings = self.profile_mgr.get_current_settings()
         self._tab_btns = {}
         self._tab_frames = {}
 
@@ -483,6 +496,43 @@ class App:
 
         gap(14)
 
+        # ── Profile Management ────────────────────────────────
+        c_prof = card()
+        section(c_prof, "PROFILURI", PANEL)
+        
+        # Profile selector
+        prof_names = self.profile_mgr.profiles.keys()
+        self.profile_var = tk.StringVar(value=self.profile_mgr.current_profile)
+        prof_combo = tk.OptionMenu(c_prof, self.profile_var, *prof_names,
+                                   command=self._on_profile_change)
+        prof_combo.config(bg=INPUT, fg=TXT, activebackground=BLUED,
+                         activeforeground=TXT, highlightthickness=0, bd=0)
+        prof_combo.pack(fill="x", padx=0, pady=(0,10))
+        
+        # Profile action buttons
+        prof_btn_frame = tk.Frame(c_prof, bg=PANEL)
+        prof_btn_frame.pack(fill="x", pady=(0,10))
+        
+        btn_load = tk.Button(prof_btn_frame, text="Incarca Profil",
+                            command=self._load_profile, bg=BLUE, fg=TXT,
+                            relief="flat", bd=0, padx=10, pady=5)
+        btn_load.pack(side="left", padx=(0,5))
+        
+        btn_save = tk.Button(prof_btn_frame, text="Salveaza Profil",
+                            command=self._save_profile, bg=GRN, fg=TXT,
+                            relief="flat", bd=0, padx=10, pady=5)
+        btn_save.pack(side="left", padx=(0,5))
+        
+        btn_new = tk.Button(prof_btn_frame, text="+ Profil Nou",
+                           command=self._new_profile, bg=BLUE2, fg=TXT,
+                           relief="flat", bd=0, padx=10, pady=5)
+        btn_new.pack(side="left")
+        
+        # Auto-save label
+        self._autosave_lbl = tk.Label(c_prof, text="Auto-save: Dezactivat",
+                                      fg=TXT3, bg=PANEL, font=(FN,8))
+        self._autosave_lbl.pack(anchor="w")
+
         # ── Detectie ──────────────────────────────────────────
         c = card()
         section(c, "SETARI DETECTIE", PANEL)
@@ -662,6 +712,70 @@ class App:
         else:
             self._natlbl.config(text="Status: Dezactivat", fg=TXT3)
             self._log("Mod Natural dezactivat.", "dim")
+
+    def _on_profile_change(self, profile_name):
+        """Change active profile"""
+        if self.profile_mgr.set_current_profile(profile_name):
+            self._log(f"Profil schimbat la: {profile_name}", "pur")
+            self._load_current_settings()
+    
+    def _load_profile(self):
+        """Load selected profile settings"""
+        profile_name = self.profile_var.get()
+        settings = self.profile_mgr.profiles[profile_name]["settings"]
+        self._apply_settings(settings)
+        self._log(f"Profil incarcat: {profile_name}", "ok")
+    
+    def _save_profile(self):
+        """Save current settings to profile"""
+        settings = self._get_current_settings()
+        profile_name = self.profile_var.get()
+        
+        if self.profile_mgr.profiles[profile_name]:
+            self.profile_mgr.profiles[profile_name]["settings"] = settings
+            self.profile_mgr.save_all_profiles()
+            self._log(f"Profil salvat: {profile_name}", "ok")
+            self._autosave_lbl.config(text=f"Auto-save: {profile_name} ✓", fg=GRN)
+    
+    def _new_profile(self):
+        """Create new profile"""
+        import simpledialog
+        name = simpledialog.askstring("Profil Nou", "Introduceti numele profilului:")
+        if name and name != "default":
+            settings = self._get_current_settings()
+            self.profile_mgr.create_profile(name, settings)
+            self.profile_var.set(name)
+            self._log(f"Profil nou creat: {name}", "ok")
+    
+    def _load_current_settings(self):
+        """Load settings from current profile"""
+        settings = self.profile_mgr.get_current_settings()
+        self._apply_settings(settings)
+    
+    def _get_current_settings(self):
+        """Get current settings from UI"""
+        return {
+            "tolerance": float(self.tolf.var.get()),
+            "delay": float(self.dlf.var.get()),
+            "cooldown": float(self.cdf.var.get()),
+            "pixelwait": float(self.pwf.var.get()),
+            "timeout": float(self.tof.var.get()),
+            "natural_mode": self._natural,
+            "auto_recast": self._autocast,
+        }
+    
+    def _apply_settings(self, settings):
+        """Apply settings to UI"""
+        try:
+            self.tolf.var.set(str(int(settings.get("tolerance", 15))))
+            self.dlf.var.set(str(settings.get("delay", 0.1)))
+            self.cdf.var.set(str(settings.get("cooldown", 3.0)))
+            self.pwf.var.set(str(settings.get("pixelwait", 0)))
+            self.tof.var.set(str(settings.get("timeout", 0)))
+            self._natural = settings.get("natural_mode", False)
+            self._autocast = settings.get("auto_recast", False)
+        except:
+            pass
 
     def _cap(self):
         self._capbtn.disable()
