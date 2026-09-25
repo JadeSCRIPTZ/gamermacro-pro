@@ -221,6 +221,7 @@ class App:
         self._running  = False
         self._natural  = False
         self._autocast = False
+        self._detector2_enabled = False
         self._timeout  = False
         self._catches  = 0
         self._recals   = 0
@@ -581,6 +582,84 @@ class App:
 
         gap(12)
 
+        # ── Detector 2 - Pixel Checker 2 (Left Click) ─────────
+        c_det2 = card()
+        section(c_det2, "PIXEL DETECTOR 2 - CUSTOM ACTION", PANEL)
+        
+        # Position X, Y
+        pos2_frame = tk.Frame(c_det2, bg=PANEL)
+        pos2_frame.pack(fill="x", pady=(0, 10))
+        self.x2f = Inp(pos2_frame, "Pos X", "640", 5)
+        self.x2f.pack(side="left", padx=(0, 10))
+        self.y2f = Inp(pos2_frame, "Pos Y", "360", 5)
+        self.y2f.pack(side="left")
+        
+        # RGB Colors
+        rgb2_frame = tk.Frame(c_det2, bg=PANEL)
+        rgb2_frame.pack(fill="x", pady=(0, 10))
+        self.r2f = Inp(rgb2_frame, "R", "150", 4)
+        self.r2f.pack(side="left", padx=(0, 10))
+        self.g2f = Inp(rgb2_frame, "G", "150", 4)
+        self.g2f.pack(side="left", padx=(0, 10))
+        self.b2f = Inp(rgb2_frame, "B", "150", 4)
+        self.b2f.pack(side="left")
+        
+        # Tolerance
+        tol2_frame = tk.Frame(c_det2, bg=PANEL)
+        tol2_frame.pack(fill="x", pady=(0, 10))
+        self.tol2f = Inp(tol2_frame, "Tol ±", "25", 5)
+        self.tol2f.pack(side="left")
+        
+        # Number of clicks
+        clicks_frame = tk.Frame(c_det2, bg=PANEL)
+        clicks_frame.pack(fill="x", pady=(0, 10))
+        tk.Label(clicks_frame, text="Clicks:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.clicks_var = tk.IntVar(value=1)
+        tk.Spinbox(clicks_frame, from_=1, to=50, textvariable=self.clicks_var,
+                  bg=INPUT, fg=TXT, relief="flat", bd=0, width=4, font=(FN,9)).pack(side="left", padx=(0, 20))
+        
+        # Interval Seconds + Milliseconds
+        interval_frame = tk.Frame(c_det2, bg=PANEL)
+        interval_frame.pack(fill="x", pady=(0, 10))
+        tk.Label(interval_frame, text="Interval:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        
+        self.interval_sec_var = tk.IntVar(value=0)
+        tk.Label(interval_frame, text="Sec:", bg=PANEL, fg=TXT2, font=(FN,8)).pack(side="left", padx=(0, 3))
+        tk.Spinbox(interval_frame, from_=0, to=60, textvariable=self.interval_sec_var,
+                  bg=INPUT, fg=TXT, relief="flat", bd=0, width=3, font=(FN,9)).pack(side="left", padx=(0, 15))
+        
+        self.interval_ms_var = tk.IntVar(value=500)
+        tk.Label(interval_frame, text="Ms:", bg=PANEL, fg=TXT2, font=(FN,8)).pack(side="left", padx=(0, 3))
+        tk.Spinbox(interval_frame, from_=0, to=999, textvariable=self.interval_ms_var,
+                  bg=INPUT, fg=TXT, relief="flat", bd=0, width=4, font=(FN,9)).pack(side="left")
+        
+        # Total interval display
+        self.interval_lbl = tk.Label(c_det2, text="Total: 0.500s (500ms)",
+                                    fg=BLUE, bg=PANEL, font=(FN,9))
+        self.interval_lbl.pack(anchor="w", pady=(0, 10))
+        
+        def update_interval(*args):
+            total_ms = self.interval_sec_var.get() * 1000 + self.interval_ms_var.get()
+            self.interval_lbl.config(text=f"Total: {total_ms/1000:.3f}s ({total_ms}ms)")
+        
+        self.interval_sec_var.trace("w", update_interval)
+        self.interval_ms_var.trace("w", update_interval)
+        
+        # Enable checkbox
+        self.det2_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(c_det2,
+            text="Enable Detector 2 (Left Click)",
+            variable=self.det2_var, bg=PANEL, fg=TXT,
+            selectcolor=INPUT, activebackground=PANEL,
+            activeforeground=TXT, font=(FN,9),
+            command=self._on_det2_toggle).pack(anchor="w", pady=(0, 5))
+        
+        self.det2_lbl = tk.Label(c_det2, text="Status: Dezactivat",
+                                fg=TXT3, bg=PANEL, font=(FN,8))
+        self.det2_lbl.pack(anchor="w")
+
+        gap(12)
+
         # ── Mod natural ───────────────────────────────────────
         c3 = card()
         section(c3, "MOD NATURAL", PANEL)
@@ -695,6 +774,17 @@ class App:
     # ─────────────────────────────────────────────────────────
     #  LOGICA
     # ─────────────────────────────────────────────────────────
+    def _on_det2_toggle(self):
+        self._detector2_enabled = self.det2_var.get()
+        if self._detector2_enabled:
+            self.det2_lbl.config(text="Status: Activat ✓", fg=BLUE2)
+            clicks = self.clicks_var.get()
+            interval_ms = self.interval_sec_var.get() * 1000 + self.interval_ms_var.get()
+            self._log(f"Detector 2 ACTIVAT — {clicks} click-uri, interval {interval_ms}ms", "pur")
+        else:
+            self.det2_lbl.config(text="Status: Dezactivat", fg=TXT3)
+            self._log("Detector 2 dezactivat.", "dim")
+
     def _on_autocast(self):
         self._autocast = self._autocast_var.get()
         if self._autocast:
