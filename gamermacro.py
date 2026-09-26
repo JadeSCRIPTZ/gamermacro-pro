@@ -685,130 +685,6 @@ class App:
         f = tk.Frame(self._content, bg=BG)
         self._tab_frames["Winter"] = f
         
-        P = tk.Frame(f, bg=BG)
-        P.pack(fill="both", expand=True, padx=16, pady=14)
-        
-        # Title
-        title = tk.Label(P, text="❄️ Winter - Visual Pixel Detector",
-                        font=(FN, 16, "bold"), bg=BG, fg=BLUE)
-        title.pack(pady=(0, 20))
-        
-        # Info card
-        info_frame = tk.Frame(P, bg=PANEL, highlightthickness=1, highlightbackground=BORD)
-        info_frame.pack(fill="x", pady=(0, 20))
-        
-        info_text = tk.Label(info_frame,
-                            text="🎯 Select pixels directly with your cursor!\n\n"
-                                 "1. Click 'Start Selection' button\n"
-                                 "2. Move cursor to the pixel you want\n"
-                                 "3. Press SPACE to capture the color\n"
-                                 "4. Press ESC to stop selection\n\n"
-                                 "Perfect for Detector 2 configuration!",
-                            bg=PANEL, fg=TXT2, justify="left",
-                            font=(FN, 10), padx=20, pady=20)
-        info_text.pack()
-        
-        # Start selection button
-        btn_frame = tk.Frame(P, bg=BG)
-        btn_frame.pack(fill="x", pady=(0, 15))
-        
-        start_btn = tk.Button(btn_frame, text="🎯 Start Pixel Selection",
-                             command=self._start_winter_selection,
-                             font=(FN, 11, "bold"), bg=BLUE, fg=TXT,
-                             activebackground=BLUED, activeforeground=TXT,
-                             relief="flat", bd=0, padx=20, pady=12,
-                             cursor="hand2", highlightthickness=0)
-        start_btn.pack(fill="x")
-        
-        # Selected values display
-        values_frame = tk.Frame(P, bg=PANEL, highlightthickness=1, highlightbackground=BORD)
-        values_frame.pack(fill="x", pady=(0, 15))
-        
-        section(values_frame, "Valores Detectate", PANEL)
-        
-        # Position display
-        pos_row = tk.Frame(values_frame, bg=PANEL)
-        pos_row.pack(fill="x", padx=15, pady=(10, 5))
-        
-        tk.Label(pos_row, text="Position: X=", bg=PANEL, fg=TXT2, font=(FN, 9)).pack(side="left")
-        self.winter_x_lbl = tk.Label(pos_row, text="0", bg=PANEL, fg=BLUE, font=(FN, 9, "bold"))
-        self.winter_x_lbl.pack(side="left", padx=(0, 15))
-        
-        tk.Label(pos_row, text="Y=", bg=PANEL, fg=TXT2, font=(FN, 9)).pack(side="left")
-        self.winter_y_lbl = tk.Label(pos_row, text="0", bg=PANEL, fg=BLUE, font=(FN, 9, "bold"))
-        self.winter_y_lbl.pack(side="left")
-        
-        # Color display
-        color_row = tk.Frame(values_frame, bg=PANEL)
-        color_row.pack(fill="x", padx=15, pady=(5, 15))
-        
-        tk.Label(color_row, text="Color: R=", bg=PANEL, fg=TXT2, font=(FN, 9)).pack(side="left")
-        self.winter_r_lbl = tk.Label(color_row, text="0", bg=PANEL, fg=BLUE, font=(FN, 9, "bold"))
-        self.winter_r_lbl.pack(side="left", padx=(0, 10))
-        
-        tk.Label(color_row, text="G=", bg=PANEL, fg=TXT2, font=(FN, 9)).pack(side="left")
-        self.winter_g_lbl = tk.Label(color_row, text="0", bg=PANEL, fg=BLUE, font=(FN, 9, "bold"))
-        self.winter_g_lbl.pack(side="left", padx=(0, 10))
-        
-        tk.Label(color_row, text="B=", bg=PANEL, fg=TXT2, font=(FN, 9)).pack(side="left")
-        self.winter_b_lbl = tk.Label(color_row, text="0", bg=PANEL, fg=BLUE, font=(FN, 9, "bold"))
-        self.winter_b_lbl.pack(side="left")
-        
-        # Copy instructions
-        copy_frame = tk.Frame(P, bg=PANEL, highlightthickness=1, highlightbackground=BORD)
-        copy_frame.pack(fill="x")
-        
-        copy_text = tk.Label(copy_frame,
-                            text="📋 Copy these values to Detector 2 in SETARI tab\n"
-                                 "Go to Settings → Detector 2 and paste the values",
-                            bg=PANEL, fg=TXT3, justify="left",
-                            font=(FN, 9), padx=15, pady=15)
-        copy_text.pack()
-    
-    def _start_winter_selection(self):
-        """Start winter pixel selection"""
-        self._log("Winter mode: Move cursor and press SPACE to capture, ESC to stop", "pur")
-        self._detect_pixel_at_cursor()
-    
-    def _detect_pixel_at_cursor(self):
-        """Detect pixel at cursor position"""
-        try:
-            import pyautogui
-            from PIL import ImageGrab
-            from pynput import keyboard
-            
-            def on_press(key):
-                try:
-                    if key == keyboard.Key.space:
-                        x, y = pyautogui.position()
-                        screenshot = ImageGrab.grab(bbox=(x, y, x+1, y+1))
-                        pixel = screenshot.getpixel((0, 0))
-                        
-                        self.winter_x_lbl.config(text=str(x))
-                        self.winter_y_lbl.config(text=str(y))
-                        self.winter_r_lbl.config(text=str(pixel[0]))
-                        self.winter_g_lbl.config(text=str(pixel[1]))
-                        self.winter_b_lbl.config(text=str(pixel[2]))
-                        
-                        self._log(f"✓ Captured: X={x}, Y={y}, R={pixel[0]}, G={pixel[1]}, B={pixel[2]}", "ok")
-                    
-                    elif key == keyboard.Key.esc:
-                        return False
-                except:
-                    pass
-            
-            listener = keyboard.Listener(on_press=on_press)
-            listener.start()
-        except Exception as e:
-            self._log(f"Error: {str(e)}", "err")
-
-    # ─────────────────────────────────────────────────────────
-    #  TAB: WINTER - DETECTOR 2
-    # ─────────────────────────────────────────────────────────
-    def _build_winter(self):
-        f = tk.Frame(self._content, bg=BG)
-        self._tab_frames["Winter"] = f
-        
         # Scroll
         cv = tk.Canvas(f, bg=BG, bd=0, highlightthickness=0)
         sb = tk.Scrollbar(f, orient="vertical", command=cv.yview,
@@ -831,8 +707,8 @@ class App:
             c = tk.Frame(P, bg=PANEL, highlightthickness=1, highlightbackground=BORD)
             c.pack(fill="x", padx=15, pady=(10, 0))
             return c
-        def section(c, title):
-            tk.Label(c, text=title, font=(FN, 10, "bold"), bg=PANEL, fg=BLUE).pack(anchor="w", padx=15, pady=(15, 10))
+        def section(c, title, bg_color=PANEL):
+            tk.Label(c, text=title, font=(FN, 10, "bold"), bg=bg_color, fg=BLUE).pack(anchor="w", padx=15, pady=(15, 10))
         
         # ── PIXEL SELECTION ────────────────────────────────
         c_select = card()
