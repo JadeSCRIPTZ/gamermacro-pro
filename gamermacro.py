@@ -280,6 +280,45 @@ class App:
             b.pack(fill="x")
             self._tab_btns[label] = b
 
+        # ── Winter Section - Pixel Picker ─────────────────────
+        tk.Frame(self._sidebar, bg=BORD, height=1).pack(
+            fill="x", padx=10, pady=(8, 8))
+        
+        winter_label = tk.Label(self._sidebar, text="🎨", fg=BLUE, bg=SIDEBAR,
+                               font=(FN, 14))
+        winter_label.pack(pady=(4, 2))
+        
+        winter_title = tk.Label(self._sidebar, text="Winter", fg=TXT, bg=SIDEBAR,
+                               font=(FN, 8, "bold"))
+        winter_title.pack(pady=(0, 6))
+        
+        # Pixel Picker Button
+        picker_btn = tk.Button(self._sidebar, text="🎯 Pick Pixel",
+                              command=self._open_pixel_picker,
+                              font=(FN, 8), bg=BLUE, fg=BG,
+                              relief="flat", bd=0, padx=5, pady=4,
+                              cursor="hand2", activebackground=BLUED,
+                              activeforeground=TXT, highlightthickness=0)
+        picker_btn.pack(fill="x", padx=8, pady=(0, 4))
+        
+        # Position display
+        self.winter_pos_lbl = tk.Label(self._sidebar, text="Pos: --",
+                                      fg=TXT3, bg=SIDEBAR, font=(FN, 7))
+        self.winter_pos_lbl.pack(pady=(0, 2))
+        
+        # Color display
+        self.winter_color_lbl = tk.Label(self._sidebar, text="RGB: --",
+                                        fg=TXT3, bg=SIDEBAR, font=(FN, 7))
+        self.winter_color_lbl.pack(pady=(0, 4))
+        
+        # Color preview
+        self.winter_color_preview = tk.Frame(self._sidebar, bg="#ffffff",
+                                            width=60, height=20,
+                                            highlightthickness=1,
+                                            highlightbackground=BORD)
+        self.winter_color_preview.pack(pady=(0, 6))
+        self.winter_color_preview.pack_propagate(False)
+
         # Status jos in sidebar
         tk.Frame(self._sidebar, bg=BORD, height=1).pack(
             fill="x", padx=10, pady=(12, 8), side="bottom")
@@ -900,6 +939,35 @@ class App:
     # ─────────────────────────────────────────────────────────
     #  LOGICA
     # ─────────────────────────────────────────────────────────
+    def _open_pixel_picker(self):
+        """Open pixel color picker"""
+        try:
+            import subprocess
+            import sys
+            # Run pixel picker in separate process
+            subprocess.Popen([sys.executable, "pixel_picker.py"])
+        except Exception as e:
+            self._log(f"Pixel Picker Error: {e}", "err")
+            messagebox.showerror("Error", f"Failed to open Pixel Picker: {e}")
+    
+    def _update_winter_display(self, x, y, r, g, b):
+        """Update Winter section display with picked color"""
+        self.winter_pos_lbl.config(text=f"X={x}, Y={y}")
+        self.winter_color_lbl.config(text=f"R={r}, G={g}, B={b}")
+        hex_color = f'#{r:02x}{g:02x}{b:02x}'
+        self.winter_color_preview.config(bg=hex_color)
+        
+        # Auto-fill Detector 2 fields
+        try:
+            self.x2f.var.set(str(x))
+            self.y2f.var.set(str(y))
+            self.r2f.var.set(str(r))
+            self.g2f.var.set(str(g))
+            self.b2f.var.set(str(b))
+            self._log(f"Winter: Picked color at ({x}, {y}) - RGB({r}, {g}, {b})", "ok")
+        except:
+            pass
+
     def _on_det2_toggle(self):
         self._detector2_enabled = self.det2_var.get()
         if self._detector2_enabled:
