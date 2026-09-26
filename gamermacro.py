@@ -679,7 +679,7 @@ class App:
         gap(12)
 
     # ─────────────────────────────────────────────────────────
-    #  TAB: WINTER - PIXEL DETECTOR
+    #  TAB: WINTER - DETECTOR 2 ONLY
     # ─────────────────────────────────────────────────────────
     def _build_winter(self):
         f = tk.Frame(self._content, bg=BG)
@@ -701,140 +701,139 @@ class App:
         P = frm
         bg = BG
         
-        # Helper functions
         def gap(n=10): tk.Frame(P, bg=bg, height=n).pack(fill="x")
         def card():
             c = tk.Frame(P, bg=PANEL, highlightthickness=1, highlightbackground=BORD)
             c.pack(fill="x", padx=15, pady=(10, 0))
             return c
-        def section(c, title, bg_color=PANEL):
-            tk.Label(c, text=title, font=(FN, 10, "bold"), bg=bg_color, fg=BLUE).pack(anchor="w", padx=15, pady=(15, 10))
+        def section(c, title):
+            tk.Label(c, text=title, font=(FN, 10, "bold"), bg=PANEL, fg=BLUE).pack(anchor="w", padx=15, pady=(15, 10))
         
-        # ── PIXEL SELECTION ────────────────────────────────
-        c_select = card()
-        section(c_select, "PIXEL SELECTOR", PANEL)
+        gap(8)
         
-        select_frame = tk.Frame(c_select, bg=PANEL)
-        select_frame.pack(fill="x", padx=15, pady=15)
+        # PIXEL PICKER
+        c_pick = card()
+        section(c_pick, "🎯 PIXEL PICKER")
         
-        self.winter_pick_btn = tk.Button(select_frame, text="🎯 CLICK HERE TO PICK PIXEL",
-                                        command=self._winter_pick_pixel,
-                                        font=(FN, 11, "bold"),
-                                        bg=BLUE, fg=BG, relief="flat", bd=0,
-                                        padx=20, pady=12, cursor="hand2",
-                                        activebackground=BLUED, activeforeground=TXT,
-                                        highlightthickness=0)
-        self.winter_pick_btn.pack(fill="x", pady=(0, 15))
+        pick_btn = tk.Button(c_pick, text="SELECT PIXEL FROM SCREEN",
+                            command=self._winter_pick_pixel,
+                            font=(FN, 11, "bold"),
+                            bg=BLUE, fg=BG, relief="flat", bd=0, padx=20, pady=12,
+                            cursor="hand2", activebackground=BLUED, activeforeground=TXT,
+                            highlightthickness=0)
+        pick_btn.pack(fill="x", padx=15, pady=(0, 15))
         
-        tk.Label(select_frame, text="Move cursor on pixel and click to capture color + position",
-                fg=TXT3, bg=PANEL, font=(FN, 9), justify="center").pack()
+        self.winter_pick_status = tk.Label(c_pick, text="Status: Ready",
+                                          fg=TXT3, bg=PANEL, font=(FN, 8))
+        self.winter_pick_status.pack(anchor="w", padx=15, pady=(0, 15))
         
-        gap(12)
+        gap(8)
         
-        # ── POSITION ───────────────────────────────────────
+        # POSITION
         c_pos = card()
-        section(c_pos, "POSITION", PANEL)
+        section(c_pos, "📍 POSITION")
         
         pos_frame = tk.Frame(c_pos, bg=PANEL)
-        pos_frame.pack(fill="x", pady=(0, 10))
-        self.winter_xf = Inp(pos_frame, "X", "640", 8)
-        self.winter_xf.pack(side="left", padx=(0, 15))
-        self.winter_yf = Inp(pos_frame, "Y", "360", 8)
-        self.winter_yf.pack(side="left")
+        pos_frame.pack(fill="x", padx=15, pady=(0, 15))
         
-        gap(12)
+        self.winter_x = Inp(pos_frame, "X", "640", 8)
+        self.winter_x.pack(side="left", padx=(0, 20))
+        self.winter_y = Inp(pos_frame, "Y", "360", 8)
+        self.winter_y.pack(side="left")
         
-        # ── COLOR DETECTION ────────────────────────────────
+        gap(8)
+        
+        # COLOR
         c_color = card()
-        section(c_color, "COLOR DETECTION", PANEL)
+        section(c_color, "🎨 COLOR")
         
         rgb_frame = tk.Frame(c_color, bg=PANEL)
-        rgb_frame.pack(fill="x", pady=(0, 10))
-        self.winter_rf = Inp(rgb_frame, "Red (R)", "150", 5)
-        self.winter_rf.pack(side="left", padx=(0, 10))
-        self.winter_gf = Inp(rgb_frame, "Green (G)", "150", 5)
-        self.winter_gf.pack(side="left", padx=(0, 10))
-        self.winter_bf = Inp(rgb_frame, "Blue (B)", "150", 5)
-        self.winter_bf.pack(side="left")
+        rgb_frame.pack(fill="x", padx=15, pady=(0, 15))
         
-        # Color preview
-        preview_frame = tk.Frame(c_color, bg=PANEL)
-        preview_frame.pack(fill="x", pady=(0, 15))
-        tk.Label(preview_frame, text="Preview:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 10))
-        self.winter_color_preview = tk.Frame(preview_frame, bg="#969696", width=100, height=30)
-        self.winter_color_preview.pack(side="left", padx=5)
-        self.winter_color_preview.pack_propagate(False)
+        self.winter_r = Inp(rgb_frame, "R", "150", 5)
+        self.winter_r.pack(side="left", padx=(0, 10))
+        self.winter_g = Inp(rgb_frame, "G", "150", 5)
+        self.winter_g.pack(side="left", padx=(0, 10))
+        self.winter_b = Inp(rgb_frame, "B", "150", 5)
+        self.winter_b.pack(side="left")
         
-        # Tolerance
-        tol_frame = tk.Frame(c_color, bg=PANEL)
-        tol_frame.pack(fill="x")
-        self.winter_tolf = Inp(tol_frame, "Tolerance ±", "25", 5)
-        self.winter_tolf.pack(side="left")
+        # Preview
+        prev_frame = tk.Frame(c_color, bg=PANEL)
+        prev_frame.pack(fill="x", padx=15, pady=(0, 15))
+        tk.Label(prev_frame, text="Preview:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 10))
+        self.winter_preview = tk.Frame(prev_frame, bg="#666666", width=100, height=30)
+        self.winter_preview.pack(side="left")
+        self.winter_preview.pack_propagate(False)
         
-        gap(12)
+        gap(8)
         
-        # ── CLICK CONFIGURATION ────────────────────────────
+        # TOLERANCE
+        c_tol = card()
+        section(c_tol, "⚙️ TOLERANCE")
+        
+        self.winter_tol = Inp(c_tol, "Tol ±", "25", 5)
+        self.winter_tol.pack(padx=15, pady=(0, 15))
+        
+        gap(8)
+        
+        # CLICKS
         c_clicks = card()
-        section(c_clicks, "CLICKS", PANEL)
+        section(c_clicks, "🖱️ CLICKS")
         
-        clicks_frame = tk.Frame(c_clicks, bg=PANEL)
-        clicks_frame.pack(fill="x")
-        self.winter_clicksf = Inp(clicks_frame, "Number of Clicks (1-50)", "1", 5)
-        self.winter_clicksf.pack(side="left")
+        self.winter_clicks = Inp(c_clicks, "Number", "1", 5)
+        self.winter_clicks.pack(padx=15, pady=(0, 15))
         
-        gap(12)
+        gap(8)
         
-        # ── INTERVAL CONFIGURATION ────────────────────────
-        c_interval = card()
-        section(c_interval, "INTERVAL BETWEEN CLICKS", PANEL)
+        # INTERVAL
+        c_int = card()
+        section(c_int, "⏱️ INTERVAL")
         
-        interval_frame = tk.Frame(c_interval, bg=PANEL)
-        interval_frame.pack(fill="x", pady=(0, 15))
+        int_frame = tk.Frame(c_int, bg=PANEL)
+        int_frame.pack(fill="x", padx=15, pady=(0, 10))
         
-        tk.Label(interval_frame, text="Sec:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
-        self.winter_secf = Inp(interval_frame, "", "0", 4)
-        self.winter_secf.pack(side="left", padx=(0, 15))
+        tk.Label(int_frame, text="Sec:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_sec = Inp(int_frame, "", "0", 4)
+        self.winter_sec.pack(side="left", padx=(0, 20))
         
-        tk.Label(interval_frame, text="Ms:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
-        self.winter_msf = Inp(interval_frame, "", "500", 5)
-        self.winter_msf.pack(side="left")
+        tk.Label(int_frame, text="Ms:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_ms = Inp(int_frame, "", "500", 5)
+        self.winter_ms.pack(side="left")
         
-        # Total display
-        total_frame = tk.Frame(c_interval, bg=PANEL)
-        total_frame.pack(fill="x")
-        tk.Label(total_frame, text="Total:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 10))
-        self.winter_total_lbl = tk.Label(total_frame, text="0.500s (500ms)",
-                                        fg=BLUE, bg=PANEL, font=(FN,9, "bold"))
-        self.winter_total_lbl.pack(side="left")
+        self.winter_total = tk.Label(c_int, text="Total: 0.500s (500ms)",
+                                    fg=BLUE, bg=PANEL, font=(FN, 9, "bold"))
+        self.winter_total.pack(anchor="w", padx=15, pady=(0, 15))
         
-        # Update total on change
         def update_total(*args):
             try:
-                sec = int(self.winter_secf.var.get() or 0)
-                ms = int(self.winter_msf.var.get() or 0)
+                sec = int(self.winter_sec.var.get() or 0)
+                ms = int(self.winter_ms.var.get() or 0)
                 total_ms = sec * 1000 + ms
-                self.winter_total_lbl.config(text=f"{total_ms/1000:.3f}s ({total_ms}ms)")
-            except:
-                pass
+                self.winter_total.config(text=f"Total: {total_ms/1000:.3f}s ({total_ms}ms)")
+            except: pass
         
-        self.winter_secf.var.trace("w", update_total)
-        self.winter_msf.var.trace("w", update_total)
+        self.winter_sec.var.trace("w", update_total)
+        self.winter_ms.var.trace("w", update_total)
         
-        gap(12)
+        gap(8)
         
-        # ── ENABLE/DISABLE ────────────────────────────────
-        c_enable = card()
+        # CONTROL
+        c_ctrl = card()
+        section(c_ctrl, "✅ CONTROL")
         
         self.winter_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(c_enable, text="Enable Detector 2",
-                      variable=self.winter_var, bg=PANEL, fg=TXT,
-                      selectcolor=INPUT, activebackground=PANEL,
-                      activeforeground=TXT, font=(FN,10, "bold"),
-                      command=self._on_winter_toggle).pack(anchor="w", padx=15, pady=15)
+        tk.Checkbutton(c_ctrl,
+            text="Enable Winter (Detector 2)",
+            variable=self.winter_var, bg=PANEL, fg=TXT,
+            selectcolor=INPUT, activebackground=PANEL,
+            activeforeground=TXT, font=(FN,10),
+            command=self._on_winter_toggle).pack(anchor="w", padx=15, pady=(0, 5))
         
-        self.winter_status_lbl = tk.Label(c_enable, text="Status: Dezactivat",
-                                         fg=TXT3, bg=PANEL, font=(FN,8))
-        self.winter_status_lbl.pack(anchor="w", padx=15, pady=(0, 15))
+        self.winter_status = tk.Label(c_ctrl, text="Status: Dezactivat",
+                                     fg=TXT3, bg=PANEL, font=(FN,8))
+        self.winter_status.pack(anchor="w", padx=15, pady=(0, 15))
+        
+        gap(20)
 
     # ─────────────────────────────────────────────────────────
     #  TAB: STATISTICI
@@ -1049,17 +1048,6 @@ class App:
         
         import threading
         threading.Thread(target=pick_in_thread, daemon=True).start()
-    
-    def _on_winter_toggle(self):
-        """Toggle Winter/Detector 2"""
-        if self.winter_var.get():
-            self.winter_status_lbl.config(text="Status: Activat ✓", fg=BLUE2)
-            clicks = self.winter_clicksf.var.get() if self.winter_clicksf.var.get() else "1"
-            interval_ms = int(self.winter_secf.var.get() or 0) * 1000 + int(self.winter_msf.var.get() or 0)
-            self._log(f"Winter (Detector 2) ACTIVAT — {clicks} clicks, interval {interval_ms}ms", "pur")
-        else:
-            self.winter_status_lbl.config(text="Status: Dezactivat", fg=TXT3)
-            self._log("Winter (Detector 2) dezactivat.", "dim")
     
     def _update_winter_display(self, x, y, r, g, b):
         """Update Winter section display with picked color"""
