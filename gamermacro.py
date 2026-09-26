@@ -823,6 +823,16 @@ class App:
         cv.bind("<MouseWheel>", lambda e: cv.yview_scroll(int(-1*(e.delta/120)), "units"))
         
         P = frm
+        bg = BG
+        
+        # Helper functions
+        def gap(n=10): tk.Frame(P, bg=bg, height=n).pack(fill="x")
+        def card():
+            c = tk.Frame(P, bg=PANEL, highlightthickness=1, highlightbackground=BORD)
+            c.pack(fill="x", padx=15, pady=(10, 0))
+            return c
+        def section(c, title):
+            tk.Label(c, text=title, font=(FN, 10, "bold"), bg=PANEL, fg=BLUE).pack(anchor="w", padx=15, pady=(15, 10))
         
         # ── PIXEL SELECTION ────────────────────────────────
         c_select = card()
