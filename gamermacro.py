@@ -280,44 +280,130 @@ class App:
             b.pack(fill="x")
             self._tab_btns[label] = b
 
-        # ── Winter Section - Pixel Picker ─────────────────────
-        tk.Frame(self._sidebar, bg=BORD, height=1).pack(
-            fill="x", padx=10, pady=(8, 8))
-        
-        winter_label = tk.Label(self._sidebar, text="🎨", fg=BLUE, bg=SIDEBAR,
-                               font=(FN, 14))
-        winter_label.pack(pady=(4, 2))
-        
-        winter_title = tk.Label(self._sidebar, text="Winter", fg=TXT, bg=SIDEBAR,
-                               font=(FN, 8, "bold"))
-        winter_title.pack(pady=(0, 6))
+        # ── Winter Section - Pixel Checker 2 ──────────────────
+        gap(12)
+        c_winter = card()
+        section(c_winter, "❄️ WINTER - DETECTOR 2 COMPLETE", PANEL)
         
         # Pixel Picker Button
-        picker_btn = tk.Button(self._sidebar, text="🎯 Pick Pixel",
-                              command=self._open_pixel_picker,
-                              font=(FN, 8), bg=BLUE, fg=BG,
-                              relief="flat", bd=0, padx=5, pady=4,
-                              cursor="hand2", activebackground=BLUED,
-                              activeforeground=TXT, highlightthickness=0)
-        picker_btn.pack(fill="x", padx=8, pady=(0, 4))
+        pick_btn = tk.Button(c_winter, text="🎯 SELECT PIXEL FROM SCREEN",
+                            command=self._winter_pick_pixel,
+                            font=(FN, 10, "bold"),
+                            bg=BLUE, fg=BG,
+                            relief="flat", bd=0, padx=20, pady=10,
+                            cursor="hand2", activebackground=BLUED,
+                            activeforeground=TXT, highlightthickness=0)
+        pick_btn.pack(fill="x", pady=(0, 8))
         
-        # Position display
-        self.winter_pos_lbl = tk.Label(self._sidebar, text="Pos: --",
-                                      fg=TXT3, bg=SIDEBAR, font=(FN, 7))
-        self.winter_pos_lbl.pack(pady=(0, 2))
+        self.winter_status_lbl = tk.Label(c_winter, text="Status: Ready",
+                                         fg=TXT3, bg=PANEL, font=(FN, 8))
+        self.winter_status_lbl.pack(anchor="w", pady=(0, 12))
         
-        # Color display
-        self.winter_color_lbl = tk.Label(self._sidebar, text="RGB: --",
-                                        fg=TXT3, bg=SIDEBAR, font=(FN, 7))
-        self.winter_color_lbl.pack(pady=(0, 4))
+        # Position
+        pos_label = tk.Label(c_winter, text="POSITION", fg=BLUE, bg=PANEL,
+                            font=(FN, 8, "bold"))
+        pos_label.pack(anchor="w", pady=(0, 8))
+        
+        pos_frame = tk.Frame(c_winter, bg=PANEL)
+        pos_frame.pack(fill="x", pady=(0, 12))
+        
+        tk.Label(pos_frame, text="X:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_x = Inp(pos_frame, "", "640", 6)
+        self.winter_x.pack(side="left", padx=(0, 20))
+        
+        tk.Label(pos_frame, text="Y:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_y = Inp(pos_frame, "", "360", 6)
+        self.winter_y.pack(side="left")
+        
+        # Color
+        color_label = tk.Label(c_winter, text="COLOR", fg=BLUE, bg=PANEL,
+                              font=(FN, 8, "bold"))
+        color_label.pack(anchor="w", pady=(0, 8))
+        
+        color_frame = tk.Frame(c_winter, bg=PANEL)
+        color_frame.pack(fill="x", pady=(0, 12))
+        
+        self.winter_r = Inp(color_frame, "R", "150", 4)
+        self.winter_r.pack(side="left", padx=(0, 10))
+        
+        self.winter_g = Inp(color_frame, "G", "150", 4)
+        self.winter_g.pack(side="left", padx=(0, 10))
+        
+        self.winter_b = Inp(color_frame, "B", "150", 4)
+        self.winter_b.pack(side="left")
         
         # Color preview
-        self.winter_color_preview = tk.Frame(self._sidebar, bg="#ffffff",
-                                            width=60, height=20,
-                                            highlightthickness=1,
-                                            highlightbackground=BORD)
-        self.winter_color_preview.pack(pady=(0, 6))
-        self.winter_color_preview.pack_propagate(False)
+        self.winter_preview = tk.Frame(c_winter, bg="#ffffff", height=30,
+                                      highlightthickness=1,
+                                      highlightbackground=BORD)
+        self.winter_preview.pack(fill="x", pady=(0, 12))
+        self.winter_preview.pack_propagate(False)
+        
+        # Tolerance
+        tol_label = tk.Label(c_winter, text="TOLERANCE", fg=BLUE, bg=PANEL,
+                            font=(FN, 8, "bold"))
+        tol_label.pack(anchor="w", pady=(0, 8))
+        
+        tol_frame = tk.Frame(c_winter, bg=PANEL)
+        tol_frame.pack(fill="x", pady=(0, 12))
+        
+        self.winter_tol = Inp(tol_frame, "Tol ±", "25", 5)
+        self.winter_tol.pack(side="left")
+        
+        # Clicks
+        clicks_label = tk.Label(c_winter, text="CLICKS", fg=BLUE, bg=PANEL,
+                               font=(FN, 8, "bold"))
+        clicks_label.pack(anchor="w", pady=(0, 8))
+        
+        clicks_frame = tk.Frame(c_winter, bg=PANEL)
+        clicks_frame.pack(fill="x", pady=(0, 12))
+        
+        tk.Label(clicks_frame, text="Nr:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_clicks = tk.IntVar(value=1)
+        tk.Spinbox(clicks_frame, from_=1, to=50, textvariable=self.winter_clicks,
+                  bg=INPUT, fg=TXT, relief="flat", bd=0, width=5, font=(FN,9)).pack(side="left")
+        
+        # Interval
+        interval_label = tk.Label(c_winter, text="INTERVAL", fg=BLUE, bg=PANEL,
+                                 font=(FN, 8, "bold"))
+        interval_label.pack(anchor="w", pady=(0, 8))
+        
+        sec_frame = tk.Frame(c_winter, bg=PANEL)
+        sec_frame.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(sec_frame, text="Sec:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_sec = tk.IntVar(value=0)
+        tk.Spinbox(sec_frame, from_=0, to=60, textvariable=self.winter_sec,
+                  bg=INPUT, fg=TXT, relief="flat", bd=0, width=5, font=(FN,9)).pack(side="left", padx=(0, 20))
+        
+        tk.Label(sec_frame, text="Ms:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_ms = tk.IntVar(value=500)
+        tk.Spinbox(sec_frame, from_=0, to=999, textvariable=self.winter_ms,
+                  bg=INPUT, fg=TXT, relief="flat", bd=0, width=5, font=(FN,9)).pack(side="left")
+        
+        self.winter_total_lbl = tk.Label(c_winter, text="Total: 0.500s (500ms)",
+                                        fg=BLUE, bg=PANEL, font=(FN, 9, "bold"))
+        self.winter_total_lbl.pack(anchor="w", pady=(0, 12))
+        
+        def update_winter_total(*args):
+            total_ms = self.winter_sec.get() * 1000 + self.winter_ms.get()
+            self.winter_total_lbl.config(text=f"Total: {total_ms/1000:.3f}s ({total_ms}ms)")
+        
+        self.winter_sec.trace("w", update_winter_total)
+        self.winter_ms.trace("w", update_winter_total)
+        
+        # Enable
+        self.winter_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(c_winter,
+            text="Enable Winter",
+            variable=self.winter_var, bg=PANEL, fg=TXT,
+            selectcolor=INPUT, activebackground=PANEL,
+            activeforeground=TXT, font=(FN,9),
+            command=self._on_winter_toggle).pack(anchor="w", pady=(0, 5))
+        
+        self.winter_enabled_lbl = tk.Label(c_winter, text="Status: Dezactivat",
+                                          fg=TXT3, bg=PANEL, font=(FN,8))
+        self.winter_enabled_lbl.pack(anchor="w")
 
         # Status jos in sidebar
         tk.Frame(self._sidebar, bg=BORD, height=1).pack(
@@ -1087,6 +1173,56 @@ class App:
     # ─────────────────────────────────────────────────────────
     #  LOGICA
     # ─────────────────────────────────────────────────────────
+    def _winter_pick_pixel(self):
+        """Pick pixel for Winter"""
+        try:
+            import pyautogui
+            import time
+            from PIL import ImageGrab
+            
+            messagebox.showinfo("Winter Pixel Picker",
+                "Move cursor to desired pixel\n\n"
+                "Will capture in 1 second...")
+            
+            time.sleep(1)
+            
+            x, y = pyautogui.position()
+            img = ImageGrab.grab(bbox=(x, y, x+1, y+1))
+            pixel = img.getpixel((0, 0))
+            
+            if len(pixel) >= 3:
+                r, g, b = int(pixel[0]), int(pixel[1]), int(pixel[2])
+                
+                # Auto-fill all fields
+                self.winter_x.var.set(x)
+                self.winter_y.var.set(y)
+                self.winter_r.var.set(r)
+                self.winter_g.var.set(g)
+                self.winter_b.var.set(b)
+                
+                # Update preview
+                hex_color = f'#{r:02x}{g:02x}{b:02x}'
+                self.winter_preview.config(bg=hex_color)
+                
+                self.winter_status_lbl.config(
+                    text=f"✓ Picked: X={x}, Y={y}, RGB({r},{g},{b})",
+                    fg=BLUE)
+                
+                self._log(f"Winter: Picked pixel at ({x}, {y}) - RGB({r}, {g}, {b})", "ok")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed: {e}")
+    
+    def _on_winter_toggle(self):
+        """Toggle Winter"""
+        if self.winter_var.get():
+            self.winter_enabled_lbl.config(text="Status: Activat ✓", fg=BLUE2)
+            clicks = self.winter_clicks.get()
+            interval_ms = self.winter_sec.get() * 1000 + self.winter_ms.get()
+            self._log(f"Winter ACTIVAT — {clicks} click-uri, interval {interval_ms}ms", "pur")
+        else:
+            self.winter_enabled_lbl.config(text="Status: Dezactivat", fg=TXT3)
+            self._log("Winter dezactivat", "dim")
+
     def _open_pixel_picker(self):
         """Open pixel color picker"""
         try:
