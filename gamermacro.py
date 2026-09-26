@@ -842,6 +842,154 @@ class App:
             self._log(f"Error: {str(e)}", "err")
 
     # ─────────────────────────────────────────────────────────
+    #  TAB: WINTER - DETECTOR 2
+    # ─────────────────────────────────────────────────────────
+    def _build_winter(self):
+        f = tk.Frame(self._content, bg=BG)
+        self._tab_frames["Winter"] = f
+        
+        # Scroll
+        cv = tk.Canvas(f, bg=BG, bd=0, highlightthickness=0)
+        sb = tk.Scrollbar(f, orient="vertical", command=cv.yview,
+                         bg=PANEL, troughcolor=BG, activebackground=PURP)
+        sb.pack(side="right", fill="y")
+        cv.pack(fill="both", expand=True)
+        cv.configure(yscrollcommand=sb.set)
+        frm = tk.Frame(cv, bg=BG)
+        wid = cv.create_window((0, 0), window=frm, anchor="nw")
+        frm.bind("<Configure>", lambda e: cv.configure(scrollregion=cv.bbox("all")))
+        cv.bind("<Configure>", lambda e: cv.itemconfig(wid, width=e.width))
+        cv.bind("<MouseWheel>", lambda e: cv.yview_scroll(int(-1*(e.delta/120)), "units"))
+        
+        P = frm
+        
+        # ── PIXEL SELECTION ────────────────────────────────
+        c_select = card()
+        section(c_select, "PIXEL SELECTOR", PANEL)
+        
+        select_frame = tk.Frame(c_select, bg=PANEL)
+        select_frame.pack(fill="x", padx=15, pady=15)
+        
+        self.winter_pick_btn = tk.Button(select_frame, text="🎯 CLICK HERE TO PICK PIXEL",
+                                        command=self._winter_pick_pixel,
+                                        font=(FN, 11, "bold"),
+                                        bg=BLUE, fg=BG, relief="flat", bd=0,
+                                        padx=20, pady=12, cursor="hand2",
+                                        activebackground=BLUED, activeforeground=TXT,
+                                        highlightthickness=0)
+        self.winter_pick_btn.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(select_frame, text="Move cursor on pixel and click to capture color + position",
+                fg=TXT3, bg=PANEL, font=(FN, 9), justify="center").pack()
+        
+        gap(12)
+        
+        # ── POSITION ───────────────────────────────────────
+        c_pos = card()
+        section(c_pos, "POSITION", PANEL)
+        
+        pos_frame = tk.Frame(c_pos, bg=PANEL)
+        pos_frame.pack(fill="x", pady=(0, 10))
+        self.winter_xf = Inp(pos_frame, "X", "640", 8)
+        self.winter_xf.pack(side="left", padx=(0, 15))
+        self.winter_yf = Inp(pos_frame, "Y", "360", 8)
+        self.winter_yf.pack(side="left")
+        
+        gap(12)
+        
+        # ── COLOR DETECTION ────────────────────────────────
+        c_color = card()
+        section(c_color, "COLOR DETECTION", PANEL)
+        
+        rgb_frame = tk.Frame(c_color, bg=PANEL)
+        rgb_frame.pack(fill="x", pady=(0, 10))
+        self.winter_rf = Inp(rgb_frame, "Red (R)", "150", 5)
+        self.winter_rf.pack(side="left", padx=(0, 10))
+        self.winter_gf = Inp(rgb_frame, "Green (G)", "150", 5)
+        self.winter_gf.pack(side="left", padx=(0, 10))
+        self.winter_bf = Inp(rgb_frame, "Blue (B)", "150", 5)
+        self.winter_bf.pack(side="left")
+        
+        # Color preview
+        preview_frame = tk.Frame(c_color, bg=PANEL)
+        preview_frame.pack(fill="x", pady=(0, 15))
+        tk.Label(preview_frame, text="Preview:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 10))
+        self.winter_color_preview = tk.Frame(preview_frame, bg="#969696", width=100, height=30)
+        self.winter_color_preview.pack(side="left", padx=5)
+        self.winter_color_preview.pack_propagate(False)
+        
+        # Tolerance
+        tol_frame = tk.Frame(c_color, bg=PANEL)
+        tol_frame.pack(fill="x")
+        self.winter_tolf = Inp(tol_frame, "Tolerance ±", "25", 5)
+        self.winter_tolf.pack(side="left")
+        
+        gap(12)
+        
+        # ── CLICK CONFIGURATION ────────────────────────────
+        c_clicks = card()
+        section(c_clicks, "CLICKS", PANEL)
+        
+        clicks_frame = tk.Frame(c_clicks, bg=PANEL)
+        clicks_frame.pack(fill="x")
+        self.winter_clicksf = Inp(clicks_frame, "Number of Clicks (1-50)", "1", 5)
+        self.winter_clicksf.pack(side="left")
+        
+        gap(12)
+        
+        # ── INTERVAL CONFIGURATION ────────────────────────
+        c_interval = card()
+        section(c_interval, "INTERVAL BETWEEN CLICKS", PANEL)
+        
+        interval_frame = tk.Frame(c_interval, bg=PANEL)
+        interval_frame.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(interval_frame, text="Sec:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_secf = Inp(interval_frame, "", "0", 4)
+        self.winter_secf.pack(side="left", padx=(0, 15))
+        
+        tk.Label(interval_frame, text="Ms:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 5))
+        self.winter_msf = Inp(interval_frame, "", "500", 5)
+        self.winter_msf.pack(side="left")
+        
+        # Total display
+        total_frame = tk.Frame(c_interval, bg=PANEL)
+        total_frame.pack(fill="x")
+        tk.Label(total_frame, text="Total:", bg=PANEL, fg=TXT2, font=(FN,9)).pack(side="left", padx=(0, 10))
+        self.winter_total_lbl = tk.Label(total_frame, text="0.500s (500ms)",
+                                        fg=BLUE, bg=PANEL, font=(FN,9, "bold"))
+        self.winter_total_lbl.pack(side="left")
+        
+        # Update total on change
+        def update_total(*args):
+            try:
+                sec = int(self.winter_secf.var.get() or 0)
+                ms = int(self.winter_msf.var.get() or 0)
+                total_ms = sec * 1000 + ms
+                self.winter_total_lbl.config(text=f"{total_ms/1000:.3f}s ({total_ms}ms)")
+            except:
+                pass
+        
+        self.winter_secf.var.trace("w", update_total)
+        self.winter_msf.var.trace("w", update_total)
+        
+        gap(12)
+        
+        # ── ENABLE/DISABLE ────────────────────────────────
+        c_enable = card()
+        
+        self.winter_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(c_enable, text="Enable Detector 2",
+                      variable=self.winter_var, bg=PANEL, fg=TXT,
+                      selectcolor=INPUT, activebackground=PANEL,
+                      activeforeground=TXT, font=(FN,10, "bold"),
+                      command=self._on_winter_toggle).pack(anchor="w", padx=15, pady=15)
+        
+        self.winter_status_lbl = tk.Label(c_enable, text="Status: Dezactivat",
+                                         fg=TXT3, bg=PANEL, font=(FN,8))
+        self.winter_status_lbl.pack(anchor="w", padx=15, pady=(0, 15))
+
+    # ─────────────────────────────────────────────────────────
     #  TAB: STATISTICI
     # ─────────────────────────────────────────────────────────
     def _build_stats(self):
@@ -949,6 +1097,72 @@ class App:
         except Exception as e:
             self._log(f"Pixel Picker Error: {e}", "err")
             messagebox.showerror("Error", f"Failed to open Pixel Picker: {e}")
+    
+    def _winter_pick_pixel(self):
+        """Pick pixel for Winter tab"""
+        self._log("Opening Pixel Picker... Move cursor and click on pixel", "info")
+        self.winter_pick_btn.config(state="disabled", text="🎯 Picking... Click pixel!")
+        
+        def pick_in_thread():
+            from PIL import ImageGrab
+            import time
+            
+            # Show dialog
+            messagebox.showinfo("Pixel Picker", 
+                "Click on the pixel you want to capture.\n\n"
+                "The color and position will be auto-filled!")
+            
+            # Listen for mouse click
+            def on_click(x, y):
+                try:
+                    img = ImageGrab.grab(bbox=(x, y, x+1, y+1))
+                    pixel = img.getpixel((0, 0))
+                    if len(pixel) >= 3:
+                        r, g, b = int(pixel[0]), int(pixel[1]), int(pixel[2])
+                        self.winter_xf.var.set(str(x))
+                        self.winter_yf.var.set(str(y))
+                        self.winter_rf.var.set(str(r))
+                        self.winter_gf.var.set(str(g))
+                        self.winter_bf.var.set(str(b))
+                        
+                        hex_color = f'#{r:02x}{g:02x}{b:02x}'
+                        self.winter_color_preview.config(bg=hex_color)
+                        
+                        self._log(f"Pixel picked: X={x}, Y={y}, RGB({r},{g},{b})", "ok")
+                except Exception as e:
+                    self._log(f"Error picking pixel: {e}", "err")
+                finally:
+                    self.winter_pick_btn.config(state="normal", text="🎯 CLICK HERE TO PICK PIXEL")
+            
+            # Use pynput to detect click
+            try:
+                from pynput.mouse import Listener
+                def on_move(x, y):
+                    pass
+                def on_click_detect(x, y, button, pressed):
+                    if pressed:
+                        on_click(x, y)
+                        return False
+                
+                with Listener(on_move=on_move, on_click=on_click_detect) as listener:
+                    listener.join()
+            except:
+                self.winter_pick_btn.config(state="normal", text="🎯 CLICK HERE TO PICK PIXEL")
+                self._log("Pixel picker not available", "warn")
+        
+        import threading
+        threading.Thread(target=pick_in_thread, daemon=True).start()
+    
+    def _on_winter_toggle(self):
+        """Toggle Winter/Detector 2"""
+        if self.winter_var.get():
+            self.winter_status_lbl.config(text="Status: Activat ✓", fg=BLUE2)
+            clicks = self.winter_clicksf.var.get() if self.winter_clicksf.var.get() else "1"
+            interval_ms = int(self.winter_secf.var.get() or 0) * 1000 + int(self.winter_msf.var.get() or 0)
+            self._log(f"Winter (Detector 2) ACTIVAT — {clicks} clicks, interval {interval_ms}ms", "pur")
+        else:
+            self.winter_status_lbl.config(text="Status: Dezactivat", fg=TXT3)
+            self._log("Winter (Detector 2) dezactivat.", "dim")
     
     def _update_winter_display(self, x, y, r, g, b):
         """Update Winter section display with picked color"""
