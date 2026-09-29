@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<title>GamerMacro Pro</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="blob blob-a"></div>
+<div class="blob blob-b"></div>
+<div class="blob blob-c"></div>
+
+<div class="app">
+
+  <!-- ───────────────────────── SIDEBAR ───────────────────────── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">🎮</div>
+      <div class="brand-text">
+        <div class="t1">GamerMacro Pro</div>
+        <div class="t2">Nebula Edition</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-item active" data-tab="macro">
+        <span class="ic">🎣</span><span>Macro</span>
+        <span class="nav-dot" id="dot-fish"></span>
+      </div>
+      <div class="nav-item" data-tab="winter">
+        <span class="ic">❄️</span><span>Winter</span>
+        <span class="nav-dot" id="dot-winter"></span>
+      </div>
+      <div class="nav-item" data-tab="profiles">
+        <span class="ic">🗂️</span><span>Profile</span>
+      </div>
+      <div class="nav-item" data-tab="stats">
+        <span class="ic">📊</span><span>Statistici</span>
+      </div>
+      <div class="nav-item" data-tab="log">
+        <span class="ic">📋</span><span>Log</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="ver">v7.0 · Nebula UI</div>
+      <div>JadeSCRIPTZ</div>
+    </div>
+  </aside>
+
+  <!-- ───────────────────────── MAIN ───────────────────────── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">🎣 Macro — Fishing Detector</h1>
+        <div class="sub" id="page-sub">Detecteaza bobber-ul si arunca automat</div>
+      </div>
+      <div class="status-row">
+        <div class="chip" id="chip-fish"><span class="d"></span><span id="chip-fish-txt">Macro oprit</span></div>
+        <div class="chip" id="chip-winter"><span class="d"></span><span id="chip-winter-txt">Winter oprit</span></div>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+
+      <!-- ══════════════════ MACRO (FISHING) ══════════════════ -->
+      <section class="page active" id="page-macro">
+        <div class="grid">
+
+          <div class="card span-2">
+            <div class="card-title"><span class="ic">🎯</span>Pixel Selector</div>
+            <div class="picker-box">
+              <button class="btn primary pick-btn" id="pick-fish" onclick="pickPixel('fish')">
+                <span class="count">3</span>
+                <span class="label"><span class="ic">🎯</span> Selecteaza Pixelul</span>
+              </button>
+              <div class="picker-info">
+                <div class="pos">X=<span id="fish-x-r">640</span> Y=<span id="fish-y-r">360</span></div>
+                <div class="col">RGB(<span id="fish-r-r">150</span>, <span id="fish-g-r">150</span>, <span id="fish-b-r">150</span>)</div>
+                <div class="hex" id="fish-hex">#969696</div>
+              </div>
+              <div class="swatch" id="fish-swatch"></div>
+            </div>
+            <div class="hint">Apasa butonul, muta cursorul pe pixelul dorit — captureaza pozitia si culoarea dupa 3 secunde.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">📍</span>Pozitie</div>
+            <div class="row">
+              <div class="field"><label>X</label><input type="number" id="fish-x" value="640"></div>
+              <div class="field"><label>Y</label><input type="number" id="fish-y" value="360"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">🎨</span>Culoare &amp; Toleranta</div>
+            <div class="row">
+              <div class="field"><label>R</label><input type="number" id="fish-r" value="150" min="0" max="255"></div>
+              <div class="field"><label>G</label><input type="number" id="fish-g" value="150" min="0" max="255"></div>
+              <div class="field"><label>B</label><input type="number" id="fish-b" value="150" min="0" max="255"></div>
+              <div class="field"><label>Tol ±</label><input type="number" id="fish-tol" value="15" min="0" max="255"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">⏱️</span>Timing</div>
+            <div class="row">
+              <div class="field"><label>Delay reactie (s)</label><input type="number" step="0.01" id="fish-delay" value="0.10"></div>
+              <div class="field"><label>Cooldown (s)</label><input type="number" step="0.1" id="fish-cooldown" value="3.0"></div>
+            </div>
+            <div class="row">
+              <div class="field"><label>Timeout recal. (s, 0=off)</label><input type="number" step="0.5" id="fish-timeout" value="0"></div>
+              <div class="field"><label>Pixel-wait (s, 0=off)</label><input type="number" step="0.05" id="fish-pixelwait" value="0"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">⚙️</span>Mod</div>
+            <div class="switch-row">
+              <div class="switch-label"><span class="n">Mod Natural</span><span class="d">8% sansa sa sara o detectie</span></div>
+              <div class="switch" id="fish-natural" onclick="toggleSwitch('fish-natural')"></div>
+            </div>
+            <div class="switch-row">
+              <div class="switch-label"><span class="n">Auto-Recast</span><span class="d">1 click in loc de 2</span></div>
+              <div class="switch" id="fish-autorecast" onclick="toggleSwitch('fish-autorecast')"></div>
+            </div>
+            <div class="field" style="margin-top:12px">
+              <label>Pauza intre cele 2 click-uri (s)</label>
+              <input type="number" step="0.05" id="fish-recastgap" value="0.5">
+            </div>
+          </div>
+
+          <div class="run-panel span-2" style="grid-column:1/-1">
+            <div class="run-info">
+              <div class="state st-idle" id="fish-state">OPRIT</div>
+              <div class="meta">
+                <span>🎣 Catches: <b id="fish-catches">0</b></span>
+                <span>🔁 Recal: <b id="fish-recals">0</b></span>
+                <span>⏱ <b id="fish-runtime">00:00</b></span>
+              </div>
+            </div>
+            <button class="btn primary run-btn" id="fish-toggle" onclick="toggleFish()">
+              <span class="ic">▶</span> Start Macro
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ══════════════════ WINTER (DETECTOR 2) ══════════════════ -->
+      <section class="page" id="page-winter">
+        <div class="grid">
+
+          <div class="card span-2">
+            <div class="card-title"><span class="ic">🎯</span>Pixel Selector</div>
+            <div class="picker-box">
+              <button class="btn primary pick-btn" id="pick-winter" onclick="pickPixel('winter')">
+                <span class="count">3</span>
+                <span class="label"><span class="ic">🎯</span> Selecteaza Pixelul</span>
+              </button>
+              <div class="picker-info">
+                <div class="pos">X=<span id="winter-x-r">640</span> Y=<span id="winter-y-r">360</span></div>
+                <div class="col">RGB(<span id="winter-r-r">150</span>, <span id="winter-g-r">150</span>, <span id="winter-b-r">150</span>)</div>
+                <div class="hex" id="winter-hex">#969696</div>
+              </div>
+              <div class="swatch" id="winter-swatch"></div>
+            </div>
+            <div class="hint">Acelasi mod de selectie ca la Macro — 3 secunde, apoi captureaza pozitia si culoarea.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">📍</span>Pozitie</div>
+            <div class="row">
+              <div class="field"><label>X</label><input type="number" id="winter-x" value="640"></div>
+              <div class="field"><label>Y</label><input type="number" id="winter-y" value="360"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">🎨</span>Culoare &amp; Toleranta</div>
+            <div class="row">
+              <div class="field"><label>R</label><input type="number" id="winter-r" value="150" min="0" max="255"></div>
+              <div class="field"><label>G</label><input type="number" id="winter-g" value="150" min="0" max="255"></div>
+              <div class="field"><label>B</label><input type="number" id="winter-b" value="150" min="0" max="255"></div>
+              <div class="field"><label>Tol ±</label><input type="number" id="winter-tol" value="25" min="0" max="255"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">🖱️</span>Click-uri</div>
+            <div class="field">
+              <label>Numar click-uri stanga (1-50)</label>
+              <input type="number" id="winter-clicks" value="1" min="1" max="50">
+            </div>
+            <div class="switch-row" style="margin-top:4px">
+              <div class="switch-label"><span class="n">Reamorsare la disparitie</span><span class="d">nu declanseaza din nou cat culoarea ramane</span></div>
+              <div class="switch on" id="winter-rearm" onclick="toggleSwitch('winter-rearm')"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">⏱️</span>Interval intre click-uri</div>
+            <div class="row">
+              <div class="field"><label>Secunde</label><input type="number" id="winter-sec" value="0" min="0" max="60"></div>
+              <div class="field"><label>Milisecunde</label><input type="number" id="winter-ms" value="500" min="0" max="999"></div>
+            </div>
+            <div class="pill" id="winter-total">0.500s · 500ms</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">⏸️</span>Pauza dupa secventa</div>
+            <div class="row">
+              <div class="field"><label>Secunde</label><input type="number" id="winter-cd-sec" value="1" min="0" max="60"></div>
+              <div class="field"><label>Milisecunde</label><input type="number" id="winter-cd-ms" value="0" min="0" max="999"></div>
+            </div>
+          </div>
+
+          <div class="run-panel span-2" style="grid-column:1/-1">
+            <div class="run-info">
+              <div class="state st-idle" id="winter-state">OPRIT</div>
+              <div class="meta">
+                <span>⚡ Declansari: <b id="winter-triggers">0</b></span>
+                <span>🖱️ Click-uri: <b id="winter-clicksdone">0</b></span>
+                <span>⏱ <b id="winter-runtime">00:00</b></span>
+              </div>
+            </div>
+            <button class="btn primary run-btn" id="winter-toggle" onclick="toggleWinter()">
+              <span class="ic">▶</span> Start Winter
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ══════════════════ PROFILES ══════════════════ -->
+      <section class="page" id="page-profiles">
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-title"><span class="ic">💾</span>Salveaza configuratia curenta</div>
+          <div class="row">
+            <div class="field" style="flex:2">
+              <label>Nume profil</label>
+              <input type="text" id="profile-name" placeholder="ex: Hypixel Skyblock">
+            </div>
+          </div>
+          <button class="btn primary" onclick="saveProfile()"><span class="ic">💾</span> Salveaza Profil</button>
+        </div>
+
+        <div class="section-h">Profile salvate</div>
+        <div id="profile-list"></div>
+      </section>
+
+      <!-- ══════════════════ STATS ══════════════════ -->
+      <section class="page" id="page-stats">
+        <div class="section-h">🎣 Macro</div>
+        <div class="grid cols-3">
+          <div class="stat-card"><div class="v" id="s-catches">0</div><div class="l">Catches</div></div>
+          <div class="stat-card"><div class="v" id="s-recals">0</div><div class="l">Recalibrari</div></div>
+          <div class="stat-card"><div class="v" id="s-skips">0</div><div class="l">Skip-uri (natural)</div></div>
+          <div class="stat-card"><div class="v" id="s-fruntime">00:00</div><div class="l">Runtime</div></div>
+          <div class="stat-card"><div class="v" id="s-rate">0.0</div><div class="l">Catches / min</div></div>
+          <div class="stat-card"><div class="v" id="s-fstate">Oprit</div><div class="l">Stare curenta</div></div>
+        </div>
+
+        <div class="section-h">❄️ Winter</div>
+        <div class="grid cols-3">
+          <div class="stat-card"><div class="v" id="s-triggers">0</div><div class="l">Declansari</div></div>
+          <div class="stat-card"><div class="v" id="s-wclicks">0</div><div class="l">Click-uri totale</div></div>
+          <div class="stat-card"><div class="v" id="s-wruntime">00:00</div><div class="l">Runtime</div></div>
+        </div>
+      </section>
+
+      <!-- ══════════════════ LOG ══════════════════ -->
+      <section class="page" id="page-log">
+        <div class="log-toolbar">
+          <div class="log-filters">
+            <div class="log-filter active" data-filter="all" onclick="setLogFilter('all')">Tot</div>
+            <div class="log-filter" data-filter="fish" onclick="setLogFilter('fish')">🎣 Macro</div>
+            <div class="log-filter" data-filter="winter" onclick="setLogFilter('winter')">❄️ Winter</div>
+          </div>
+          <button class="btn ghost sm" onclick="clearLog()"><span class="ic">🗑️</span> Curata</button>
+        </div>
+        <div class="log-box" id="log-box"></div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast-stack" id="toast-stack"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

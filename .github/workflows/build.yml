@@ -20,10 +20,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install pyautogui pillow pynput pyinstaller
+        run: pip install -r requirements-dev.txt
 
       - name: Build EXE
-        run: pyinstaller --onefile --windowed --name "GamerMacroPro" gamermacro.py
+        run: pyinstaller --noconfirm --onefile --windowed --name "GamerMacroPro" --add-data "ui;ui" app.py
 
       - name: Get date
         id: date
@@ -33,18 +33,19 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.0-${{ steps.date.outputs.date }}
-          name: "GamerMacro Pro v2.0 — ${{ steps.date.outputs.date }}"
+          tag_name: v7.0-${{ steps.date.outputs.date }}
+          name: "GamerMacro Pro v7.0 — Nebula UI — ${{ steps.date.outputs.date }}"
           body: |
-            ## 🎮 GamerMacro Pro — Fishing Edition
-            Design complet nou cu UI cyberpunk.
+            ## 🎮 GamerMacro Pro — Nebula UI
+            Interfata complet noua: gradient mov-grafit, glassmorphism, sidebar modern.
 
             ### ⬇️ Download
-            Click pe **GamerMacroPro.exe** — fara Python instalat!
+            Click pe **GamerMacro Pro.exe** — fara Python instalat!
 
             ### Features
-            - Pixel detection cu delay de reactie configurabil
-            - Mod Natural (8% skip)
-            - State machine RESET/WATCH
-            - Design cyberpunk HUD
+            - 🎣 Macro — detector pixel principal (pescuit), click dreapta
+            - ❄️ Winter — al doilea detector, click stanga configurabil (nr. click-uri + interval sec/ms)
+            - 🎯 Pixel picker cu numaratoare de 3 secunde, identic pentru ambele detectoare
+            - 🗂️ Profile complete (salveaza/incarca toate setarile)
+            - 📊 Statistici live, 📋 Log color-codat
           files: dist/GamerMacroPro.exe
