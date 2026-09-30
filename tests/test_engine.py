@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from gm.engine import (Backend, FishConfig, FishingWorker, PixelSpec,  # noqa: E402
-                       WinterConfig, WinterWorker, check_bounds)
+                       SeaConfig, SeaWorker, WinterConfig, WinterWorker, check_bounds)
 
 HIT, MISS = (200, 50, 50), (10, 10, 10)
 
@@ -20,6 +20,32 @@ class FakeBackend(Backend):
     def position(self): return (10, 10)
     def screen_size(self): return (1920, 1080)
     def click(self, button): self.clicks.append((self.now(), button))
+    def press_key(self, key): pass
+
+
+class SeaFakeBackend(Backend):
+    """Doi pixeli independenti (Grinch / Nutcracker) dupa pozitie, plus tastatura."""
+
+    def __init__(self, grinch_xy, nutcracker_xy, grinch_fn, nutcracker_fn):
+        self.t0 = time.monotonic()
+        self.gxy, self.nxy = grinch_xy, nutcracker_xy
+        self.gfn, self.nfn = grinch_fn, nutcracker_fn
+        self.clicks, self.keys = [], []
+
+    def now(self): return time.monotonic() - self.t0
+
+    def pixel(self, x, y):
+        t = self.now()
+        if (x, y) == self.gxy:
+            return self.gfn(t)
+        if (x, y) == self.nxy:
+            return self.nfn(t)
+        return (0, 0, 0)
+
+    def position(self): return (10, 10)
+    def screen_size(self): return (1920, 1080)
+    def click(self, button): self.clicks.append((self.now(), button))
+    def press_key(self, key): self.keys.append((self.now(), key))
 
 
 def run(worker, seconds):
@@ -120,6 +146,21 @@ class Fishing(unittest.TestCase):
         self.assertIn("ecran indisponibil", w.error)
         self.assertIn(("stopped",), events)
 
+    def test_pause_freezes_clicks_resume_continues(self):
+        # folosit de SeaWorker cat lupta cu Grinch/Nutcracker
+        b = FakeBackend(lambda t: HIT if (t % 0.3) > 0.2 else MISS)  # ciclic: mai lipseste, apoi apare
+        w = FishingWorker(fish(), b, lambda *a: None, poll=0.01)
+        w.pause()
+        w.start()
+        time.sleep(0.25)
+        self.assertEqual(len(b.clicks), 0)  # in pauza, n-a atins nimic
+        w.resume()
+        time.sleep(0.6)
+        w.request_stop()
+        w.join(2)
+        self.assertFalse(w.is_alive())
+        self.assertGreaterEqual(w.catches, 1)  # dupa resume, prinde normal
+
 
 class Winter(unittest.TestCase):
     def cfg(self, **kw):
@@ -174,6 +215,91 @@ class Winter(unittest.TestCase):
         b = FakeBackend(lambda t: MISS)
         w = run(WinterWorker(self.cfg(), b, lambda *a: None, poll=0.01), 0.3)
         self.assertEqual((w.triggers, len(b.clicks)), (0, 0))
+
+
+G_ON, G_OFF = (255, 30, 30), (0, 0, 0)   # Grinch: inima rosie / absenta
+N_ON, N_OFF = (30, 220, 30), (0, 0, 0)   # Nutcracker: nume verde / absent
+
+
+class Sea(unittest.TestCase):
+    def cfg(self, **kw):
+        base = dict(
+            grinch=PixelSpec(1, 1, *G_ON, 15),
+            nutcracker=PixelSpec(2, 2, *N_ON, 15),
+            rod_key="1", sword_key="2", fire_key="3",
+            fire_duration=0.1, grinch_interval=0.02, sword_interval=0.02,
+            jitter=0.0, max_cycles=3, grinch_timeout=0.5,
+        )
+        base.update(kw)
+        return SeaConfig(**base)
+
+    def test_grinch_spams_left_click_until_gone_no_keys(self):
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_ON if t < 0.08 else G_OFF,
+                           nutcracker_fn=lambda t: N_OFF)
+        w = run(SeaWorker(self.cfg(), b, lambda *a: None, poll=0.01), 0.3)
+        self.assertEqual(w.grinch_kills, 1)
+        self.assertEqual(w.nutcracker_kills, 0)
+        self.assertTrue(b.clicks)
+        self.assertTrue(all(btn == "left" for _, btn in b.clicks))
+        self.assertEqual(b.keys, [])  # Grinch nu umbla la hotbar - ramane pe undita
+
+    def test_nutcracker_single_cycle_then_dead(self):
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF,
+                           nutcracker_fn=lambda t: N_ON if t < 0.05 else N_OFF)
+        w = run(SeaWorker(self.cfg(fire_duration=0.15), b, lambda *a: None, poll=0.01), 0.4)
+        self.assertEqual(w.nutcracker_kills, 1)
+        self.assertEqual(w.nutcracker_fails, 0)
+        self.assertEqual(b.keys[0][1], "3")   # foc
+        self.assertEqual(b.keys[1][1], "2")   # sabie, fara asteptare
+        self.assertEqual(b.keys[-1][1], "1")  # revine la undita la final
+        self.assertEqual(b.clicks[0][1], "right")
+        self.assertTrue(b.keys[0][0] <= b.clicks[0][0] <= b.keys[1][0])
+
+    def test_nutcracker_multiple_cycles_then_dead(self):
+        # moare abia dupa primul ciclu de foc, in al doilea
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF,
+                           nutcracker_fn=lambda t: N_ON if t < 0.18 else N_OFF)
+        w = run(SeaWorker(self.cfg(fire_duration=0.12, max_cycles=5), b,
+                          lambda *a: None, poll=0.01), 0.6)
+        self.assertEqual(w.nutcracker_kills, 1)
+        fire_presses = [k for k in b.keys if k[1] == "3"]
+        self.assertEqual(len(fire_presses), 2)
+
+    def test_nutcracker_gives_up_after_max_cycles(self):
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF,
+                           nutcracker_fn=lambda t: N_ON)  # nu moare niciodata
+        w = run(SeaWorker(self.cfg(fire_duration=0.05, max_cycles=3), b,
+                          lambda *a: None, poll=0.01), 0.6)
+        self.assertEqual(w.nutcracker_kills, 0)
+        self.assertEqual(w.nutcracker_fails, 1)
+        fire_presses = [k for k in b.keys if k[1] == "3"]
+        self.assertEqual(len(fire_presses), 3)  # exact plafonul
+        self.assertEqual(b.keys[-1][1], "1")    # revine la undita oricum
+
+    def test_stop_mid_nutcracker_fight_is_immediate(self):
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF,
+                           nutcracker_fn=lambda t: N_ON)
+        w = SeaWorker(self.cfg(fire_duration=5.0, sword_interval=0.05, max_cycles=10), b,
+                      lambda *a: None, poll=0.01)
+        w.start()
+        time.sleep(0.15)
+        t0 = time.monotonic()
+        w.request_stop()
+        w.join(2)
+        self.assertFalse(w.is_alive())
+        self.assertLess(time.monotonic() - t0, 0.3)
+
+    def test_does_nothing_when_both_absent(self):
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF, nutcracker_fn=lambda t: N_OFF)
+        w = run(SeaWorker(self.cfg(), b, lambda *a: None, poll=0.01), 0.2)
+        self.assertEqual((w.grinch_kills, w.nutcracker_kills, len(b.clicks), len(b.keys)),
+                         (0, 0, 0, 0))
 
 
 if __name__ == "__main__":

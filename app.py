@@ -24,6 +24,8 @@ from gm.engine import (
     FishingWorker,
     PixelSpec,
     RealBackend,
+    SeaConfig,
+    SeaWorker,
     WinterConfig,
     WinterWorker,
     check_bounds,
@@ -68,6 +70,22 @@ def _winter_config(cfg: dict) -> WinterConfig:
     )
 
 
+def _sea_config(cfg: dict) -> SeaConfig:
+    return SeaConfig(
+        grinch=_pixel_from(cfg.get("grinch", {})),
+        nutcracker=_pixel_from(cfg.get("nutcracker", {})),
+        rod_key=str(cfg.get("rod_key", "1"))[:1] or "1",
+        sword_key=str(cfg.get("sword_key", "2"))[:1] or "2",
+        fire_key=str(cfg.get("fire_key", "3"))[:1] or "3",
+        fire_duration=float(cfg.get("fire_duration", 5.0) or 5.0),
+        grinch_interval=float(cfg.get("grinch_interval", 0.35) or 0.35),
+        sword_interval=float(cfg.get("sword_interval", 0.35) or 0.35),
+        jitter=float(cfg.get("jitter", 0.08) or 0.0),
+        max_cycles=max(1, int(cfg.get("max_cycles", 8) or 8)),
+        grinch_timeout=float(cfg.get("grinch_timeout", 6.0) or 6.0),
+    )
+
+
 class Api:
     """Punte intre JS (pywebview.api.*) si motorul de automatizare."""
 
@@ -76,6 +94,7 @@ class Api:
         self._backend_error: Optional[str] = None
         self.fish_worker: Optional[FishingWorker] = None
         self.winter_worker: Optional[WinterWorker] = None
+        self.sea_worker: Optional[SeaWorker] = None
         self.events: "queue.Queue[dict]" = queue.Queue()
         self._seq = 0
         self._lock = threading.Lock()
@@ -162,10 +181,48 @@ class Api:
             self.winter_worker.request_stop()
         return {"ok": True}
 
+    # ── sea creatures (Grinch / Nutcracker) ─────────────────────────
+    def _sea_emit(self):
+        """La fel ca self._emit('sea'), dar pune Macro pe pauza cat dureaza o
+        lupta (Grinch/Nutcracker), ca sa nu incerce sa recasteze in acelasi timp."""
+        base = self._emit("sea")
+
+        def _fn(etype: str, *args):
+            base(etype, *args)
+            if etype == "state" and self.fish_worker and self.fish_worker.is_alive():
+                name = args[0] if args else None
+                if name in ("GRINCH", "NUTCRACKER"):
+                    self.fish_worker.pause()
+                elif name == "WATCH":
+                    self.fish_worker.resume()
+        return _fn
+
+    def start_sea(self, cfg: dict) -> dict:
+        try:
+            if self.sea_worker and self.sea_worker.is_alive():
+                return {"ok": False, "error": "Sistemul de creaturi ruleaza deja."}
+            backend = self._get_backend()
+            sc = _sea_config(cfg)
+            check_bounds(backend, sc.grinch)
+            check_bounds(backend, sc.nutcracker)
+            self.sea_worker = SeaWorker(sc, backend, self._sea_emit())
+            self.sea_worker.start()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def stop_sea(self) -> dict:
+        if self.sea_worker:
+            self.sea_worker.request_stop()
+        if self.fish_worker:
+            self.fish_worker.resume()  # nu ramana blocat pe pauza daca opresti Sea in lupta
+        return {"ok": True}
+
     def stop_all(self) -> None:
         try:
             self.stop_fishing()
             self.stop_winter()
+            self.stop_sea()
         except Exception:
             pass
 

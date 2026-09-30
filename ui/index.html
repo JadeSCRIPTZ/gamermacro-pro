@@ -32,6 +32,10 @@
         <span class="ic">❄️</span><span>Winter</span>
         <span class="nav-dot" id="dot-winter"></span>
       </div>
+      <div class="nav-item" data-tab="sea">
+        <span class="ic">🗡️</span><span>Sea Creatures</span>
+        <span class="nav-dot" id="dot-sea"></span>
+      </div>
       <div class="nav-item" data-tab="profiles">
         <span class="ic">🗂️</span><span>Profile</span>
       </div>
@@ -60,6 +64,7 @@
       <div class="status-row">
         <div class="chip" id="chip-fish"><span class="d"></span><span id="chip-fish-txt">Macro oprit</span></div>
         <div class="chip" id="chip-winter"><span class="d"></span><span id="chip-winter-txt">Winter oprit</span></div>
+        <div class="chip" id="chip-sea"><span class="d"></span><span id="chip-sea-txt">Sea oprit</span></div>
       </div>
     </div>
 
@@ -234,6 +239,119 @@
         </div>
       </section>
 
+      <!-- ══════════════════ SEA CREATURES ══════════════════ -->
+      <section class="page" id="page-sea">
+        <div class="grid">
+
+          <div class="card span-2">
+            <div class="card-title"><span class="ic">🎯</span>Pixel — Grinch (inima)</div>
+            <div class="picker-box">
+              <button class="btn primary pick-btn" id="pick-grinch" onclick="pickPixel('grinch')">
+                <span class="count">3</span>
+                <span class="label"><span class="ic">🎯</span> Selecteaza Pixelul</span>
+              </button>
+              <div class="picker-info">
+                <div class="pos">X=<span id="grinch-x-r">0</span> Y=<span id="grinch-y-r">0</span></div>
+                <div class="col">RGB(<span id="grinch-r-r">255</span>, <span id="grinch-g-r">30</span>, <span id="grinch-b-r">30</span>)</div>
+                <div class="hex" id="grinch-hex">#ff1e1e</div>
+              </div>
+              <div class="swatch" id="grinch-swatch"></div>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <div class="field"><label>X</label><input type="number" id="grinch-x" value="0"></div>
+              <div class="field"><label>Y</label><input type="number" id="grinch-y" value="0"></div>
+            </div>
+            <div class="row">
+              <div class="field"><label>R</label><input type="number" id="grinch-r" value="255" min="0" max="255"></div>
+              <div class="field"><label>G</label><input type="number" id="grinch-g" value="30" min="0" max="255"></div>
+              <div class="field"><label>B</label><input type="number" id="grinch-b" value="30" min="0" max="255"></div>
+            </div>
+            <div class="hint">Pune cursorul pe inima ❤️ de langa numele Grinch cand apare, apoi apasa — 3 secunde.</div>
+          </div>
+
+          <div class="card span-2">
+            <div class="card-title"><span class="ic">🎯</span>Pixel — Nutcracker (numele)</div>
+            <div class="picker-box">
+              <button class="btn primary pick-btn" id="pick-nutcracker" onclick="pickPixel('nutcracker')">
+                <span class="count">3</span>
+                <span class="label"><span class="ic">🎯</span> Selecteaza Pixelul</span>
+              </button>
+              <div class="picker-info">
+                <div class="pos">X=<span id="nutcracker-x-r">0</span> Y=<span id="nutcracker-y-r">0</span></div>
+                <div class="col">RGB(<span id="nutcracker-r-r">30</span>, <span id="nutcracker-g-r">220</span>, <span id="nutcracker-b-r">30</span>)</div>
+                <div class="hex" id="nutcracker-hex">#1edc1e</div>
+              </div>
+              <div class="swatch" id="nutcracker-swatch"></div>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <div class="field"><label>X</label><input type="number" id="nutcracker-x" value="0"></div>
+              <div class="field"><label>Y</label><input type="number" id="nutcracker-y" value="0"></div>
+            </div>
+            <div class="row">
+              <div class="field"><label>R</label><input type="number" id="nutcracker-r" value="30" min="0" max="255"></div>
+              <div class="field"><label>G</label><input type="number" id="nutcracker-g" value="220" min="0" max="255"></div>
+              <div class="field"><label>B</label><input type="number" id="nutcracker-b" value="30" min="0" max="255"></div>
+            </div>
+            <div class="hint">Pune cursorul pe inceputul numelui "Nutcracker" (verde) cand apare, apoi apasa — 3 secunde.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">📍</span>Toleranta</div>
+            <div class="row">
+              <div class="field"><label>Grinch Tol ±</label><input type="number" id="grinch-tol" value="15" min="0" max="255"></div>
+              <div class="field"><label>Nutcracker Tol ±</label><input type="number" id="nutcracker-tol" value="15" min="0" max="255"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">⌨️</span>Taste hotbar</div>
+            <div class="row">
+              <div class="field"><label>Undita</label><input type="text" id="sea-rod-key" value="1" maxlength="1"></div>
+              <div class="field"><label>Sabie (Hyperion)</label><input type="text" id="sea-sword-key" value="2" maxlength="1"></div>
+              <div class="field"><label>Foc</label><input type="text" id="sea-fire-key" value="3" maxlength="1"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">🔥</span>Foc + Sabie (Nutcracker)</div>
+            <div class="row">
+              <div class="field"><label>Durata foc / fereastra atac (s)</label><input type="number" step="0.1" id="sea-fire-duration" value="5.0"></div>
+              <div class="field"><label>Interval click sabie (s)</label><input type="number" step="0.05" id="sea-sword-interval" value="0.35"></div>
+            </div>
+            <div class="row">
+              <div class="field"><label>Plafon cicluri (siguranta)</label><input type="number" id="sea-max-cycles" value="8" min="1" max="30"></div>
+              <div class="field"><label>Jitter click-uri (± s)</label><input type="number" step="0.01" id="sea-jitter" value="0.08"></div>
+            </div>
+            <div class="hint">Un ciclu = apasa 3, click dreapta, apasa 2 imediat, atac cat tine "durata foc". Se repeta pana moare sau se atinge plafonul.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ic">🎣</span>Grinch</div>
+            <div class="row">
+              <div class="field"><label>Interval click (s)</label><input type="number" step="0.05" id="sea-grinch-interval" value="0.35"></div>
+              <div class="field"><label>Plafon siguranta (s)</label><input type="number" step="0.5" id="sea-grinch-timeout" value="6.0"></div>
+            </div>
+            <div class="hint">Ramane pe undita — click stanga pana dispare indicatorul, fara schimbare de slot.</div>
+          </div>
+
+          <div class="run-panel span-2" style="grid-column:1/-1">
+            <div class="run-info">
+              <div class="state st-idle" id="sea-state">OPRIT</div>
+              <div class="meta">
+                <span>🎣 Grinch: <b id="sea-grinch-kills">0</b></span>
+                <span>🗡️ Nutcracker: <b id="sea-nut-kills">0</b></span>
+                <span>⚠️ Renuntari: <b id="sea-nut-fails">0</b></span>
+                <span>⏱ <b id="sea-runtime">00:00</b></span>
+              </div>
+            </div>
+            <button class="btn primary run-btn" id="sea-toggle" onclick="toggleSea()">
+              <span class="ic">▶</span> Start Sea Creatures
+            </button>
+          </div>
+
+        </div>
+      </section>
+
       <!-- ══════════════════ PROFILES ══════════════════ -->
       <section class="page" id="page-profiles">
         <div class="card" style="margin-bottom:20px">
@@ -269,6 +387,15 @@
           <div class="stat-card"><div class="v" id="s-wclicks">0</div><div class="l">Click-uri totale</div></div>
           <div class="stat-card"><div class="v" id="s-wruntime">00:00</div><div class="l">Runtime</div></div>
         </div>
+
+        <div class="section-h">🗡️ Sea Creatures</div>
+        <div class="grid cols-3">
+          <div class="stat-card"><div class="v" id="s-grinch">0</div><div class="l">Grinch uciși</div></div>
+          <div class="stat-card"><div class="v" id="s-nutkills">0</div><div class="l">Nutcracker uciși</div></div>
+          <div class="stat-card"><div class="v" id="s-nutfails">0</div><div class="l">Nutcracker renunțări</div></div>
+          <div class="stat-card"><div class="v" id="s-seastate">Oprit</div><div class="l">Stare curenta</div></div>
+          <div class="stat-card"><div class="v" id="s-searuntime">00:00</div><div class="l">Runtime</div></div>
+        </div>
       </section>
 
       <!-- ══════════════════ LOG ══════════════════ -->
@@ -278,6 +405,7 @@
             <div class="log-filter active" data-filter="all" onclick="setLogFilter('all')">Tot</div>
             <div class="log-filter" data-filter="fish" onclick="setLogFilter('fish')">🎣 Macro</div>
             <div class="log-filter" data-filter="winter" onclick="setLogFilter('winter')">❄️ Winter</div>
+            <div class="log-filter" data-filter="sea" onclick="setLogFilter('sea')">🗡️ Sea</div>
           </div>
           <button class="btn ghost sm" onclick="clearLog()"><span class="ic">🗑️</span> Curata</button>
         </div>

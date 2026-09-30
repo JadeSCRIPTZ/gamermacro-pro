@@ -6,7 +6,9 @@
 const state = {
   fish:   { running:false, uiState:'IDLE', startedAt:null },
   winter: { running:false, uiState:'IDLE', startedAt:null },
-  stats:  { catches:0, recals:0, skips:0, triggers:0, wclicks:0 },
+  sea:    { running:false, uiState:'IDLE', startedAt:null },
+  stats:  { catches:0, recals:0, skips:0, triggers:0, wclicks:0,
+            grinch:0, nutKills:0, nutFails:0 },
   logFilter: 'all',
 };
 
@@ -36,6 +38,7 @@ function init(){
 const PAGE_META = {
   macro:   {title:'🎣 Macro — Fishing Detector', sub:'Detecteaza bobber-ul si arunca automat'},
   winter:  {title:'❄️ Winter — Detector 2', sub:'Click stanga configurabil pe o a doua culoare'},
+  sea:     {title:'🗡️ Sea Creatures — Grinch & Nutcracker', sub:'Recunoaste mobul dupa culoare si lupta automat'},
   profiles:{title:'🗂️ Profile', sub:'Salveaza si incarca configuratii complete'},
   stats:   {title:'📊 Statistici', sub:'Performanta sesiunii curente'},
   log:     {title:'📋 Activity Log', sub:'Evenimente live din ambele detectoare'},
@@ -56,12 +59,14 @@ function bindNav(){
 }
 
 /* ── Inputs / derived displays ─────────────────────────────────────── */
+const PIXEL_PREFIXES = ['fish','winter','grinch','nutcracker'];
+
 function bindInputs(){
-  ['fish-r','fish-g','fish-b'].forEach(id=>{
-    document.getElementById(id).addEventListener('input', updateSwatches);
-  });
-  ['winter-r','winter-g','winter-b'].forEach(id=>{
-    document.getElementById(id).addEventListener('input', updateSwatches);
+  PIXEL_PREFIXES.forEach(p=>{
+    [p+'-r', p+'-g', p+'-b'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', updateSwatches);
+    });
   });
   ['winter-sec','winter-ms'].forEach(id=>{
     document.getElementById(id).addEventListener('input', updateWinterTotal);
@@ -71,7 +76,7 @@ function bindInputs(){
 function clamp255(v){ v = parseInt(v,10); if(isNaN(v)) v=0; return Math.max(0, Math.min(255, v)); }
 
 function updateSwatches(){
-  ['fish','winter'].forEach(p=>{
+  PIXEL_PREFIXES.forEach(p=>{
     const r = clamp255(document.getElementById(p+'-r').value);
     const g = clamp255(document.getElementById(p+'-g').value);
     const b = clamp255(document.getElementById(p+'-b').value);
@@ -208,6 +213,62 @@ function applyWinterConfig(c){
   updateWinterTotal();
 }
 
+function seaConfig(){
+  return {
+    grinch: {
+      x: parseInt(document.getElementById('grinch-x').value||0,10),
+      y: parseInt(document.getElementById('grinch-y').value||0,10),
+      r: clamp255(document.getElementById('grinch-r').value),
+      g: clamp255(document.getElementById('grinch-g').value),
+      b: clamp255(document.getElementById('grinch-b').value),
+      tol: parseInt(document.getElementById('grinch-tol').value||0,10),
+    },
+    nutcracker: {
+      x: parseInt(document.getElementById('nutcracker-x').value||0,10),
+      y: parseInt(document.getElementById('nutcracker-y').value||0,10),
+      r: clamp255(document.getElementById('nutcracker-r').value),
+      g: clamp255(document.getElementById('nutcracker-g').value),
+      b: clamp255(document.getElementById('nutcracker-b').value),
+      tol: parseInt(document.getElementById('nutcracker-tol').value||0,10),
+    },
+    rod_key: document.getElementById('sea-rod-key').value || '1',
+    sword_key: document.getElementById('sea-sword-key').value || '2',
+    fire_key: document.getElementById('sea-fire-key').value || '3',
+    fire_duration: parseFloat(document.getElementById('sea-fire-duration').value||5.0),
+    sword_interval: parseFloat(document.getElementById('sea-sword-interval').value||0.35),
+    grinch_interval: parseFloat(document.getElementById('sea-grinch-interval').value||0.35),
+    jitter: parseFloat(document.getElementById('sea-jitter').value||0.08),
+    max_cycles: parseInt(document.getElementById('sea-max-cycles').value||8,10),
+    grinch_timeout: parseFloat(document.getElementById('sea-grinch-timeout').value||6.0),
+  };
+}
+
+function applySeaConfig(c){
+  const g = c.grinch||{}, n = c.nutcracker||{};
+  document.getElementById('grinch-x').value = g.x||0;
+  document.getElementById('grinch-y').value = g.y||0;
+  document.getElementById('grinch-r').value = g.r||0;
+  document.getElementById('grinch-g').value = g.g||0;
+  document.getElementById('grinch-b').value = g.b||0;
+  document.getElementById('grinch-tol').value = g.tol||0;
+  document.getElementById('nutcracker-x').value = n.x||0;
+  document.getElementById('nutcracker-y').value = n.y||0;
+  document.getElementById('nutcracker-r').value = n.r||0;
+  document.getElementById('nutcracker-g').value = n.g||0;
+  document.getElementById('nutcracker-b').value = n.b||0;
+  document.getElementById('nutcracker-tol').value = n.tol||0;
+  document.getElementById('sea-rod-key').value = c.rod_key||'1';
+  document.getElementById('sea-sword-key').value = c.sword_key||'2';
+  document.getElementById('sea-fire-key').value = c.fire_key||'3';
+  document.getElementById('sea-fire-duration').value = c.fire_duration||5.0;
+  document.getElementById('sea-sword-interval').value = c.sword_interval||0.35;
+  document.getElementById('sea-grinch-interval').value = c.grinch_interval||0.35;
+  document.getElementById('sea-jitter').value = c.jitter||0.08;
+  document.getElementById('sea-max-cycles').value = c.max_cycles||8;
+  document.getElementById('sea-grinch-timeout').value = c.grinch_timeout||6.0;
+  updateSwatches();
+}
+
 /* ── Start / stop ──────────────────────────────────────────────────── */
 function toggleFish(){
   if (!api) return toast('Bridge indisponibil', 'error');
@@ -257,28 +318,59 @@ function toggleWinter(){
   }
 }
 
+function toggleSea(){
+  if (!api) return toast('Bridge indisponibil', 'error');
+  const btn = document.getElementById('sea-toggle');
+  if (!state.sea.running){
+    btn.disabled = true;
+    api.start_sea(seaConfig()).then(res=>{
+      btn.disabled = false;
+      if (res && res.ok){
+        state.sea.running = true;
+        state.sea.startedAt = Date.now();
+        btn.innerHTML = '<span class="ic">■</span> Stop Sea Creatures';
+        btn.classList.remove('primary'); btn.classList.add('danger','running');
+        setChip('sea', true, 'Sea activ');
+        document.getElementById('dot-sea').classList.add('on');
+      } else {
+        toast('Nu am putut porni: ' + (res && res.error || '?'), 'error');
+      }
+    });
+  } else {
+    btn.disabled = true;
+    api.stop_sea().then(()=>{ btn.disabled = false; });
+  }
+}
+
 function setChip(which, live, text){
   const chip = document.getElementById('chip-'+which);
   chip.classList.toggle('live', live);
   document.getElementById('chip-'+which+'-txt').textContent = text;
 }
 
+const WORKER_META = {
+  fish:   { startLabel:'Start Macro',          runningTxt:'Macro ruleaza', stoppedTxt:'Macro oprit', statEl:'s-fstate' },
+  winter: { startLabel:'Start Winter',         runningTxt:'Winter ruleaza', stoppedTxt:'Winter oprit', statEl:null },
+  sea:    { startLabel:'Start Sea Creatures',  runningTxt:'Sea activ',     stoppedTxt:'Sea oprit',   statEl:'s-seastate' },
+};
+
 function onWorkerStopped(which){
   state[which].running = false;
   state[which].startedAt = null;
+  const meta = WORKER_META[which] || {};
   const btn = document.getElementById(which+'-toggle');
-  const label = which === 'fish' ? 'Start Macro' : 'Start Winter';
-  btn.innerHTML = `<span class="ic">▶</span> ${label}`;
+  btn.innerHTML = `<span class="ic">▶</span> ${meta.startLabel || 'Start'}`;
   btn.classList.remove('danger','running'); btn.classList.add('primary');
-  setChip(which, false, (which === 'fish' ? 'Macro oprit' : 'Winter oprit'));
+  setChip(which, false, meta.stoppedTxt || (which+' oprit'));
   document.getElementById('dot-'+which).classList.remove('on');
   setState(which, 'IDLE');
 }
 
 /* ── State labels ──────────────────────────────────────────────────── */
 const STATE_LABELS = {
-  RESET:'RESET', WATCH:'URMARIRE', PREWAIT:'PRE-WAIT',
+  RESET:'RESET', WATCH:'URMARIRE', PREWAIT:'PRE-WAIT', PAUSED:'PAUZA (Sea)',
   IDLE:'OPRIT', CLICKING:'CLICK...', COOLDOWN:'PAUZA', WAIT_CLEAR:'ASTEPT CULOARE',
+  GRINCH:'GRINCH!', NUTCRACKER:'NUTCRACKER!', STUCK:'BLOCAT — ASTEPT',
 };
 function setState(which, name){
   state[which].uiState = name;
@@ -286,9 +378,10 @@ function setState(which, name){
   el.textContent = STATE_LABELS[name] || name;
   el.classList.remove('st-idle','st-watch','st-active');
   if (name === 'IDLE') el.classList.add('st-idle');
-  else if (name === 'WATCH' || name === 'WAIT_CLEAR') el.classList.add('st-watch');
+  else if (name === 'WATCH' || name === 'WAIT_CLEAR' || name === 'PAUSED' || name === 'STUCK') el.classList.add('st-watch');
   else el.classList.add('st-active');
-  document.getElementById('s-fstate').textContent = which==='fish' ? (STATE_LABELS[state.fish.uiState]||state.fish.uiState) : document.getElementById('s-fstate').textContent;
+  const statEl = (WORKER_META[which] || {}).statEl;
+  if (statEl) document.getElementById(statEl).textContent = STATE_LABELS[name] || name;
 }
 
 /* ── Clock / runtime ───────────────────────────────────────────────── */
@@ -310,6 +403,11 @@ function tickClock(){
     const t = fmtClock(Date.now()-state.winter.startedAt);
     document.getElementById('winter-runtime').textContent = t;
     document.getElementById('s-wruntime').textContent = t;
+  }
+  if (state.sea.running && state.sea.startedAt){
+    const t = fmtClock(Date.now()-state.sea.startedAt);
+    document.getElementById('sea-runtime').textContent = t;
+    document.getElementById('s-searuntime').textContent = t;
   }
 }
 
@@ -346,6 +444,17 @@ function processEvent(ev){
     document.getElementById('s-triggers').textContent = args[0];
     document.getElementById('winter-clicksdone').textContent = state.stats.wclicks;
     document.getElementById('s-wclicks').textContent = state.stats.wclicks;
+  } else if (type === 'grinch'){
+    state.stats.grinch = args[0];
+    document.getElementById('sea-grinch-kills').textContent = args[0];
+    document.getElementById('s-grinch').textContent = args[0];
+  } else if (type === 'nutcracker'){
+    state.stats.nutKills = args[0];
+    if (args[2] === false) state.stats.nutFails += 1;
+    document.getElementById('sea-nut-kills').textContent = state.stats.nutKills;
+    document.getElementById('s-nutkills').textContent = state.stats.nutKills;
+    document.getElementById('sea-nut-fails').textContent = state.stats.nutFails;
+    document.getElementById('s-nutfails').textContent = state.stats.nutFails;
   } else if (type === 'stopped'){
     onWorkerStopped(src);
   }
@@ -358,7 +467,7 @@ function appendLog(src, level, msg){
   line.className = `log-line lv-${level} src-${src}`;
   if (state.logFilter !== 'all' && state.logFilter !== src) line.style.display = 'none';
   const ts = new Date().toLocaleTimeString('ro-RO', {hour12:false});
-  const tagTxt = src === 'fish' ? 'MACRO' : 'WINTER';
+  const tagTxt = src === 'fish' ? 'MACRO' : (src === 'winter' ? 'WINTER' : 'SEA');
   line.innerHTML = `<span class="ts">${ts}</span><span class="tag">[${tagTxt}]</span><span class="msg"></span>`;
   line.querySelector('.msg').textContent = msg;
   box.appendChild(line);
@@ -380,7 +489,7 @@ function clearLog(){
 
 /* ── Profiles ──────────────────────────────────────────────────────── */
 function currentFullState(){
-  return { fish: fishConfig(), winter: winterConfig() };
+  return { fish: fishConfig(), winter: winterConfig(), sea: seaConfig() };
 }
 
 function saveProfile(){
@@ -429,6 +538,7 @@ function loadProfile(name){
     if (res && res.ok && res.state){
       if (res.state.fish) applyFishConfig(res.state.fish);
       if (res.state.winter) applyWinterConfig(res.state.winter);
+      if (res.state.sea) applySeaConfig(res.state.sea);
       toast(`Profil "${name}" incarcat`, 'success');
     } else {
       toast('Eroare la incarcare: ' + (res && res.error || '?'), 'error');

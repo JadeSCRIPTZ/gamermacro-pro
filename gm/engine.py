@@ -67,6 +67,24 @@ class WinterConfig:
         return self.cooldown_s + self.cooldown_ms / 1000.0
 
 
+@dataclass
+class SeaConfig:
+    """Recunoaste Grinch (inima rosie) / Nutcracker (numele verde) si lupta automat."""
+    grinch: PixelSpec = field(
+        default_factory=lambda: PixelSpec(0, 0, 255, 60, 60, 20))
+    nutcracker: PixelSpec = field(
+        default_factory=lambda: PixelSpec(0, 0, 60, 200, 60, 20))
+    rod_key: str = "1"
+    sword_key: str = "2"
+    fire_key: str = "3"
+    fire_duration: float = 5.0     # cat tine efectul de foc = fereastra de atac cu sabia
+    grinch_interval: float = 0.35  # interval de baza intre click-uri la Grinch
+    sword_interval: float = 0.35   # interval de baza intre click-uri cu sabia
+    jitter: float = 0.08           # variatie aleatoare +/- pe fiecare interval (anti-pattern robotic)
+    max_cycles: int = 8            # plafon siguranta: cicluri foc+sabie la Nutcracker
+    grinch_timeout: float = 6.0    # plafon siguranta: cat batem Grinch-ul inainte sa renuntam
+
+
 # ── Backend (ecran + mouse) ──────────────────────────────────────────────────
 class Backend:
     def pixel(self, x: int, y: int) -> RGB:
@@ -81,6 +99,9 @@ class Backend:
     def click(self, button: str) -> None:  # "left" | "right"
         raise NotImplementedError
 
+    def press_key(self, key: str) -> None:  # ex: "1", "2", "3" - schimba slotul hotbar
+        raise NotImplementedError
+
 
 class NullBackend(Backend):
     """Nu face nimic - pentru selftest si previzualizari."""
@@ -89,19 +110,22 @@ class NullBackend(Backend):
     def position(self): return (0, 0)
     def screen_size(self): return (1920, 1080)
     def click(self, button): pass
+    def press_key(self, key): pass
 
 
 class RealBackend(Backend):
-    """Acelasi mecanism ca in versiunea veche: pyautogui pentru ecran, pynput pentru click."""
+    """Acelasi mecanism ca in versiunea veche: pyautogui pentru ecran, pynput pentru click/tastatura."""
 
     def __init__(self) -> None:
         import pyautogui
-        from pynput.mouse import Button, Controller
+        from pynput.mouse import Button, Controller as MouseController
+        from pynput.keyboard import Controller as KeyboardController
         pyautogui.PAUSE = 0
         self._pg = pyautogui
         self._left, self._right = Button.left, Button.right
-        self._mouse = Controller()
-        self._lock = threading.Lock()  # doua detectoare nu se calca pe click
+        self._mouse = MouseController()
+        self._keyboard = KeyboardController()
+        self._lock = threading.Lock()  # detectoarele nu se calca pe click/taste
 
     def pixel(self, x, y):
         p = self._pg.pixel(x, y)
@@ -119,6 +143,11 @@ class RealBackend(Backend):
         with self._lock:
             self._mouse.click(self._left if button == "left" else self._right, 1)
 
+    def press_key(self, key):
+        with self._lock:
+            self._keyboard.press(key)
+            self._keyboard.release(key)
+
 
 def check_bounds(backend: Backend, px: PixelSpec) -> None:
     w, h = backend.screen_size()
@@ -135,20 +164,39 @@ class _Worker(threading.Thread):
         super().__init__(daemon=True, name=f"gm-{self.kind}")
         self.backend, self._emit, self.poll, self._rng = backend, emit, poll, rng
         self._halt = threading.Event()
+        self._paused = threading.Event()
         self.error: Optional[str] = None
 
     def request_stop(self) -> None:
         self._halt.set()
+        self._paused.clear()  # nu ramane blocat in pauza daca cineva cere stop
 
     @property
     def stopping(self) -> bool:
         return self._halt.is_set()
+
+    def pause(self) -> None:
+        self._paused.set()
+
+    def resume(self) -> None:
+        self._paused.clear()
+
+    @property
+    def paused(self) -> bool:
+        return self._paused.is_set()
 
     def _wait(self, seconds: float) -> bool:
         """Asteapta intreruptibil. False daca s-a cerut oprirea."""
         if seconds > 0:
             return not self._halt.wait(seconds)
         return not self._halt.is_set()
+
+    def _jittered(self, base: float, jitter: float) -> float:
+        """Interval +/- o variatie aleatoare, ca sa nu para un click-uri robotic."""
+        if jitter <= 0:
+            return max(0.0, base)
+        delta = (self._rng() * 2 - 1) * jitter
+        return max(0.02, base + delta)
 
     def log(self, level: str, msg: str) -> None:
         self._emit("log", level, msg)
@@ -217,8 +265,21 @@ class FishingWorker(_Worker):
         state = "RESET"
         self.state(state)
         watch_since = wait_until = 0.0
+        was_paused = False
 
         while not self.stopping:
+            if self.paused:
+                if not was_paused:
+                    self.state("PAUSED")
+                    was_paused = True
+                if not self._wait(self.poll):
+                    break
+                continue
+            if was_paused:
+                was_paused = False
+                state = "RESET"  # reincepe curat dupa o pauza (ex: lupta cu Nutcracker)
+                self.state(state)
+
             rgb = self.backend.pixel(p.x, p.y)
             hit = p.hit(rgb)
             now = time.monotonic()
@@ -326,5 +387,132 @@ class WinterWorker(_Worker):
             elif not hit:
                 armed = True
                 self.state("WATCH")
+            if not self._wait(self.poll):
+                break
+
+
+class SeaWorker(_Worker):
+    """Al treilea detector: recunoaste Grinch/Nutcracker dupa culoare si lupta automat.
+
+    Grinch (HP mic) -> atac cu ce ai in mana (undita), click stanga pana dispare.
+    Nutcracker (HP mare) -> cicluri de: foc (tasta+click dreapta) urmat imediat
+    de sabie (tasta+click stanga in bucla), cronometrate de la activarea focului,
+    pana dispare sau se atinge plafonul de cicluri.
+    """
+    kind = "sea"
+
+    def __init__(self, cfg: SeaConfig, backend: Backend, emit: Emit, **kw) -> None:
+        super().__init__(backend, emit, **kw)
+        self.cfg = cfg
+        self.grinch_kills = 0
+        self.nutcracker_kills = 0
+        self.nutcracker_fails = 0
+
+    def _hit(self, px: PixelSpec) -> bool:
+        return px.hit(self.backend.pixel(px.x, px.y))
+
+    def _fight_grinch(self) -> Optional[bool]:
+        """True = a disparut (mort), False = plafon atins fara sa moara, None = s-a cerut stop."""
+        c = self.cfg
+        self.state("GRINCH")
+        self.log("warn", "Grinch detectat — atac cu ce am in mana…")
+        t0 = time.monotonic()
+        clicks = 0
+        gave_up = False
+        while not self.stopping and self._hit(c.grinch):
+            self.backend.click("left")
+            clicks += 1
+            if time.monotonic() - t0 > c.grinch_timeout:
+                gave_up = True
+                self.log("err", f"Grinch: plafon {c.grinch_timeout:g}s atins, renunt.")
+                break
+            if not self._wait(self._jittered(c.grinch_interval, c.jitter)):
+                return None
+        if self.stopping:
+            return None
+        if gave_up:
+            return False
+        self.grinch_kills += 1
+        n = self.grinch_kills
+        self._emit("grinch", n, clicks)
+        self.log("ok", f"[Grinch #{n}] Gata — {clicks} click-uri.")
+        return True
+
+    def _fight_nutcracker(self) -> Optional[bool]:
+        """True = a murit, False = plafon atins fara sa moara, None = s-a cerut stop."""
+        c = self.cfg
+        self.state("NUTCRACKER")
+        self.log("warn", "Nutcracker detectat — secventa foc + sabie…")
+        killed = False
+        cycles = 0
+        while not self.stopping and cycles < c.max_cycles:
+            if not self._hit(c.nutcracker):
+                killed = True
+                break
+            cycles += 1
+            self.backend.press_key(c.fire_key)
+            self.backend.click("right")
+            t0 = time.monotonic()
+            self.backend.press_key(c.sword_key)
+            self.log("dim", f"[Nutcracker] ciclul {cycles}/{c.max_cycles}: foc pornit, "
+                             f"atac {c.fire_duration:g}s…")
+            while not self.stopping and time.monotonic() - t0 < c.fire_duration:
+                self.backend.click("left")
+                if not self._hit(c.nutcracker):
+                    killed = True
+                    break
+                if not self._wait(self._jittered(c.sword_interval, c.jitter)):
+                    return None
+            if killed:
+                break
+        if self.stopping:
+            return None
+        self.backend.press_key(c.rod_key)
+        if killed:
+            self.nutcracker_kills += 1
+            n = self.nutcracker_kills
+            self._emit("nutcracker", n, cycles, True)
+            self.log("ok", f"[Nutcracker #{n}] Mort dupa {cycles} cicluri. Revin la undita.")
+            return True
+        self.nutcracker_fails += 1
+        self._emit("nutcracker", self.nutcracker_kills, cycles, False)
+        self.log("err", f"[Nutcracker] Plafon de {c.max_cycles} cicluri atins fara sa "
+                         f"moara — revin la undita si astept sa dispara.")
+        return False
+
+    def _run(self) -> None:
+        c = self.cfg
+        self.log("hi",
+                 f"SEA START  grinch=({c.grinch.x},{c.grinch.y})  "
+                 f"nutcracker=({c.nutcracker.x},{c.nutcracker.y})  "
+                 f"foc={c.fire_duration:g}s  plafon={c.max_cycles} cicluri  "
+                 f"taste={c.rod_key}/{c.sword_key}/{c.fire_key}")
+        self.state("WATCH")
+        # "armed" = putem ataca daca apare; dupa un esec (plafon atins fara sa moara)
+        # se dezarmeaza pana dispare culoarea, ca sa nu reatace la nesfarsit acelasi mob blocat.
+        g_armed = n_armed = True
+        while not self.stopping:
+            g_hit, n_hit = self._hit(c.grinch), self._hit(c.nutcracker)
+
+            if g_hit and g_armed:
+                result = self._fight_grinch()
+                if result is None:
+                    break
+                g_armed = result
+                self.state("WATCH" if g_armed else "STUCK")
+            elif n_hit and n_armed:
+                result = self._fight_nutcracker()
+                if result is None:
+                    break
+                n_armed = result
+                self.state("WATCH" if n_armed else "STUCK")
+            else:
+                rearmed = False
+                if not g_hit and not g_armed:
+                    g_armed, rearmed = True, True
+                if not n_hit and not n_armed:
+                    n_armed, rearmed = True, True
+                if rearmed:
+                    self.state("WATCH")
             if not self._wait(self.poll):
                 break

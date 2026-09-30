@@ -22,8 +22,16 @@ start/stop: acelasi design ca la Macro (inclusiv pixel picker cu numaratoare
 de 3 secunde), plus numar de click-uri stanga (1-50), interval intre
 click-uri in **secunde + milisecunde**, si pauza dupa fiecare secventa.
 
-**🗂️ Profile** — salveaza/incarca toata configuratia (ambele detectoare)
-sub un nume, stocate in `~/.gamermacro/profiles/`.
+**🗡️ Sea Creatures** — recunoaste dupa culoare ce creatura marina a aparut
+(Grinch / Nutcracker, la fel pixel picker cu 3 secunde) si lupta automat:
+Grinch primeste click stanga pana dispare; Nutcracker primeste cicluri de
+foc (tasta+click dreapta) urmat imediat de sabie (tasta+click stanga in
+bucla), cronometrate de la activarea focului, pana moare sau se atinge un
+plafon de siguranta de cicluri. Cat dureaza o lupta, Macro se pune automat
+pe pauza (nu incearca sa recasteze in acelasi timp) si reia singur dupa.
+
+**🗂️ Profile** — salveaza/incarca toata configuratia (toate cele trei
+sisteme) sub un nume, stocate in `~/.gamermacro/profiles/`.
 
 **📊 Statistici** — catches, recalibrari, skip-uri, declansari Winter,
 click-uri totale, runtime live pentru fiecare detector.
@@ -34,7 +42,7 @@ click-uri totale, runtime live pentru fiecare detector.
 
 ```
 gm/engine.py     motorul de automatizare — fara UI, testat cu unittest
-                 (FishingWorker, WinterWorker, PixelSpec, FishConfig, WinterConfig)
+                 (FishingWorker, WinterWorker, SeaWorker + configurile lor)
 app.py           bridge Python <-> UI (pywebview), expune API-ul catre JS
 ui/              interfata (HTML/CSS/JS), randata ca fereastra nativa
 tests/           teste pentru gm/engine.py (python -m unittest -v)
