@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from gm.engine import (Backend, FishConfig, FishingWorker, PixelSpec,  # noqa: E402
-                       SeaConfig, SeaWorker, WinterConfig, WinterWorker, check_bounds)
+                       SeaConfig, SeaWorker, check_bounds)
 
 HIT, MISS = (200, 50, 50), (10, 10, 10)
 
@@ -160,61 +160,6 @@ class Fishing(unittest.TestCase):
         w.join(2)
         self.assertFalse(w.is_alive())
         self.assertGreaterEqual(w.catches, 1)  # dupa resume, prinde normal
-
-
-class Winter(unittest.TestCase):
-    def cfg(self, **kw):
-        base = dict(pixel=spec(), clicks=3, interval_s=0, interval_ms=100,
-                    cooldown_s=0, cooldown_ms=200)
-        base.update(kw)
-        return WinterConfig(**base)
-
-    def test_left_clicks_n_times_with_interval(self):
-        b = FakeBackend(lambda t: HIT if t > 0.1 else MISS)
-        w = run(WinterWorker(self.cfg(), b, lambda *a: None, poll=0.01), 0.6)
-        first = b.clicks[:3]
-        self.assertEqual([c[1] for c in first], ["left"] * 3)
-        gaps = [first[1][0] - first[0][0], first[2][0] - first[1][0]]
-        for g in gaps:
-            self.assertTrue(0.08 <= g <= 0.30, gaps)
-
-    def test_interval_is_seconds_plus_milliseconds(self):
-        self.assertAlmostEqual(self.cfg(interval_s=2, interval_ms=250).interval, 2.25)
-        self.assertAlmostEqual(self.cfg(cooldown_s=1, cooldown_ms=5).cooldown, 1.005)
-
-    def test_rearm_on_clear_fires_once_while_color_stays(self):
-        b = FakeBackend(lambda t: HIT if t > 0.05 else MISS)
-        w = run(WinterWorker(self.cfg(clicks=1), b, lambda *a: None, poll=0.01), 0.8)
-        self.assertEqual(w.triggers, 1)
-
-    def test_rearm_on_clear_fires_again_after_color_leaves(self):
-        b = FakeBackend(lambda t: HIT if (t % 0.4) > 0.2 else MISS)
-        w = run(WinterWorker(self.cfg(clicks=1), b, lambda *a: None, poll=0.01), 1.0)
-        self.assertGreaterEqual(w.triggers, 2)
-
-    def test_without_rearm_repeats_every_cooldown(self):
-        b = FakeBackend(lambda t: HIT)
-        w = run(WinterWorker(self.cfg(clicks=1, rearm_on_clear=False), b,
-                             lambda *a: None, poll=0.01), 0.75)
-        self.assertGreaterEqual(w.triggers, 3)
-
-    def test_stop_mid_sequence(self):
-        b = FakeBackend(lambda t: HIT)
-        w = WinterWorker(self.cfg(clicks=50, interval_s=1, interval_ms=0), b,
-                         lambda *a: None, poll=0.01)
-        w.start()
-        time.sleep(0.25)
-        t0 = time.monotonic()
-        w.request_stop()
-        w.join(2)
-        self.assertFalse(w.is_alive())
-        self.assertLess(time.monotonic() - t0, 0.3)
-        self.assertLessEqual(len(b.clicks), 2)
-
-    def test_does_nothing_when_color_absent(self):
-        b = FakeBackend(lambda t: MISS)
-        w = run(WinterWorker(self.cfg(), b, lambda *a: None, poll=0.01), 0.3)
-        self.assertEqual((w.triggers, len(b.clicks)), (0, 0))
 
 
 G_ON, G_OFF = (255, 30, 30), (0, 0, 0)   # Grinch: inima rosie / absenta

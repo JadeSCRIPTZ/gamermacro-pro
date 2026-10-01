@@ -26,8 +26,6 @@ from gm.engine import (
     RealBackend,
     SeaConfig,
     SeaWorker,
-    WinterConfig,
-    WinterWorker,
     check_bounds,
 )
 
@@ -58,18 +56,6 @@ def _fish_config(cfg: dict) -> FishConfig:
     )
 
 
-def _winter_config(cfg: dict) -> WinterConfig:
-    return WinterConfig(
-        pixel=_pixel_from(cfg),
-        clicks=max(1, int(cfg.get("clicks", 1))),
-        interval_s=int(cfg.get("interval_s", 0)),
-        interval_ms=int(cfg.get("interval_ms", 500)),
-        cooldown_s=int(cfg.get("cooldown_s", 1)),
-        cooldown_ms=int(cfg.get("cooldown_ms", 0)),
-        rearm_on_clear=bool(cfg.get("rearm_on_clear", True)),
-    )
-
-
 def _sea_config(cfg: dict) -> SeaConfig:
     return SeaConfig(
         grinch=_pixel_from(cfg.get("grinch", {})),
@@ -93,7 +79,6 @@ class Api:
         self._backend: Optional[Backend] = None
         self._backend_error: Optional[str] = None
         self.fish_worker: Optional[FishingWorker] = None
-        self.winter_worker: Optional[WinterWorker] = None
         self.sea_worker: Optional[SeaWorker] = None
         self.events: "queue.Queue[dict]" = queue.Queue()
         self._seq = 0
@@ -162,26 +147,7 @@ class Api:
             self.fish_worker.request_stop()
         return {"ok": True}
 
-    # ── winter (detector 2) ─────────────────────────────────────────
-    def start_winter(self, cfg: dict) -> dict:
-        try:
-            if self.winter_worker and self.winter_worker.is_alive():
-                return {"ok": False, "error": "Winter ruleaza deja."}
-            backend = self._get_backend()
-            wc = _winter_config(cfg)
-            check_bounds(backend, wc.pixel)
-            self.winter_worker = WinterWorker(wc, backend, self._emit("winter"))
-            self.winter_worker.start()
-            return {"ok": True}
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
-
-    def stop_winter(self) -> dict:
-        if self.winter_worker:
-            self.winter_worker.request_stop()
-        return {"ok": True}
-
-    # ── sea creatures (Grinch / Nutcracker) ─────────────────────────
+    # ── sea creatures / "Winter" (Grinch / Nutcracker) ──────────────
     def _sea_emit(self):
         """La fel ca self._emit('sea'), dar pune Macro pe pauza cat dureaza o
         lupta (Grinch/Nutcracker), ca sa nu incerce sa recasteze in acelasi timp."""
@@ -221,7 +187,6 @@ class Api:
     def stop_all(self) -> None:
         try:
             self.stop_fishing()
-            self.stop_winter()
             self.stop_sea()
         except Exception:
             pass

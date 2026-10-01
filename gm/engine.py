@@ -2,7 +2,7 @@
 
 Doua detectoare independente, fiecare pe thread-ul lui, cu start/stop propriu:
   * FishingWorker - pixel principal: detecteaza culoarea, click dreapta (pescuit)
-  * WinterWorker  - pixel 2: detecteaza culoarea, click stanga de N ori cu interval
+  * SeaWorker     - "Winter": recunoaste Grinch/Nutcracker dupa culoare si lupta automat
 """
 from __future__ import annotations
 
@@ -45,26 +45,6 @@ class FishConfig:
     natural: bool = False       # 8% sansa sa sara o detectie
     auto_recast: bool = False   # True = 1 click, False = 2 click-uri
     recast_gap: float = 0.5     # pauza intre cele 2 click-uri
-
-
-@dataclass
-class WinterConfig:
-    pixel: PixelSpec = field(
-        default_factory=lambda: PixelSpec(640, 360, 150, 150, 150, 25))
-    clicks: int = 1
-    interval_s: int = 0
-    interval_ms: int = 500
-    cooldown_s: int = 1
-    cooldown_ms: int = 0
-    rearm_on_clear: bool = True  # nu declansa din nou cat timp culoarea ramane
-
-    @property
-    def interval(self) -> float:
-        return self.interval_s + self.interval_ms / 1000.0
-
-    @property
-    def cooldown(self) -> float:
-        return self.cooldown_s + self.cooldown_ms / 1000.0
 
 
 @dataclass
@@ -330,63 +310,6 @@ class FishingWorker(_Worker):
                     state = "WATCH"
                     self.state(state)
 
-            if not self._wait(self.poll):
-                break
-
-
-class WinterWorker(_Worker):
-    """Pixel 2: cand vede culoarea, click stanga de N ori cu interval fix, apoi pauza."""
-    kind = "winter"
-
-    def __init__(self, cfg: WinterConfig, backend: Backend, emit: Emit, **kw) -> None:
-        super().__init__(backend, emit, **kw)
-        self.cfg = cfg
-        self.triggers = 0
-        self.clicks_done = 0
-        self.last_trigger = 0.0
-
-    def _fire(self) -> bool:
-        c = self.cfg
-        self.triggers += 1
-        n = self.triggers
-        self.state("CLICKING")
-        self.log("warn", f"[Winter #{n}] Culoare detectata — {c.clicks} click-uri…")
-        done = 0
-        for i in range(c.clicks):
-            if self.stopping:
-                break
-            self.backend.click("left")
-            done += 1
-            self.clicks_done += 1
-            if i < c.clicks - 1 and not self._wait(c.interval):
-                break
-        self.last_trigger = time.time()
-        self._emit("trigger", n, done)
-        if self.stopping:
-            return False
-        self.log("ok", f"[Winter #{n}] Gata ({done}/{c.clicks}). Pauza {c.cooldown:.3f}s…")
-        self.state("COOLDOWN")
-        return self._wait(c.cooldown)
-
-    def _run(self) -> None:
-        c, p = self.cfg, self.cfg.pixel
-        self.log("hi",
-                 f"WINTER START  ({p.x},{p.y})  RGB({p.r},{p.g},{p.b})  ±{p.tol}  "
-                 f"{c.clicks} click-uri la {c.interval:.3f}s  pauza {c.cooldown:.3f}s  "
-                 f"reamorsare={'dupa ce dispare' if c.rearm_on_clear else 'imediat'}")
-        armed = True
-        self.state("WATCH")
-        while not self.stopping:
-            hit = p.hit(self.backend.pixel(p.x, p.y))
-            if armed:
-                if hit:
-                    if not self._fire():
-                        break
-                    armed = not c.rearm_on_clear
-                    self.state("WATCH" if armed else "WAIT_CLEAR")
-            elif not hit:
-                armed = True
-                self.state("WATCH")
             if not self._wait(self.poll):
                 break
 

@@ -4,11 +4,9 @@
    ======================================================================== */
 
 const state = {
-  fish:   { running:false, uiState:'IDLE', startedAt:null },
-  winter: { running:false, uiState:'IDLE', startedAt:null },
-  sea:    { running:false, uiState:'IDLE', startedAt:null },
-  stats:  { catches:0, recals:0, skips:0, triggers:0, wclicks:0,
-            grinch:0, nutKills:0, nutFails:0 },
+  fish: { running:false, uiState:'IDLE', startedAt:null },
+  sea:  { running:false, uiState:'IDLE', startedAt:null },  // "Winter" (Grinch & Nutcracker)
+  stats: { catches:0, recals:0, skips:0, grinch:0, nutKills:0, nutFails:0 },
   logFilter: 'all',
 };
 
@@ -27,7 +25,6 @@ function init(){
   bindNav();
   bindInputs();
   updateSwatches();
-  updateWinterTotal();
   refreshProfiles();
   tickClock();
   setInterval(tickClock, 1000);
@@ -37,8 +34,7 @@ function init(){
 /* ── Navigation ─────────────────────────────────────────────────────── */
 const PAGE_META = {
   macro:   {title:'🎣 Macro — Fishing Detector', sub:'Detecteaza bobber-ul si arunca automat'},
-  winter:  {title:'❄️ Winter — Detector 2', sub:'Click stanga configurabil pe o a doua culoare'},
-  sea:     {title:'🗡️ Sea Creatures — Grinch & Nutcracker', sub:'Recunoaste mobul dupa culoare si lupta automat'},
+  sea:     {title:'❄️ Winter — Grinch & Nutcracker', sub:'Recunoaste mobul dupa culoare si lupta automat'},
   profiles:{title:'🗂️ Profile', sub:'Salveaza si incarca configuratii complete'},
   stats:   {title:'📊 Statistici', sub:'Performanta sesiunii curente'},
   log:     {title:'📋 Activity Log', sub:'Evenimente live din ambele detectoare'},
@@ -59,7 +55,7 @@ function bindNav(){
 }
 
 /* ── Inputs / derived displays ─────────────────────────────────────── */
-const PIXEL_PREFIXES = ['fish','winter','grinch','nutcracker'];
+const PIXEL_PREFIXES = ['fish','grinch','nutcracker'];
 
 function bindInputs(){
   PIXEL_PREFIXES.forEach(p=>{
@@ -67,9 +63,6 @@ function bindInputs(){
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', updateSwatches);
     });
-  });
-  ['winter-sec','winter-ms'].forEach(id=>{
-    document.getElementById(id).addEventListener('input', updateWinterTotal);
   });
 }
 
@@ -91,19 +84,12 @@ function updateSwatches(){
   });
 }
 
-function updateWinterTotal(){
-  const s = parseInt(document.getElementById('winter-sec').value||0,10);
-  const ms = parseInt(document.getElementById('winter-ms').value||0,10);
-  const total = s*1000+ms;
-  document.getElementById('winter-total').textContent = `${(total/1000).toFixed(3)}s · ${total}ms`;
-}
-
 function toggleSwitch(id){
   document.getElementById(id).classList.toggle('on');
 }
 function isOn(id){ return document.getElementById(id).classList.contains('on'); }
 
-/* ── Pixel picker (3s countdown, same for macro & winter) ────────────── */
+/* ── Pixel picker (3s countdown, la fel in toate tab-urile) ──────────── */
 function pickPixel(which){
   const btn = document.getElementById('pick-'+which);
   if (btn.classList.contains('counting')) return;
@@ -163,23 +149,6 @@ function fishConfig(){
   };
 }
 
-function winterConfig(){
-  return {
-    x: parseInt(document.getElementById('winter-x').value||0,10),
-    y: parseInt(document.getElementById('winter-y').value||0,10),
-    r: clamp255(document.getElementById('winter-r').value),
-    g: clamp255(document.getElementById('winter-g').value),
-    b: clamp255(document.getElementById('winter-b').value),
-    tol: parseInt(document.getElementById('winter-tol').value||0,10),
-    clicks: parseInt(document.getElementById('winter-clicks').value||1,10),
-    interval_s: parseInt(document.getElementById('winter-sec').value||0,10),
-    interval_ms: parseInt(document.getElementById('winter-ms').value||0,10),
-    cooldown_s: parseInt(document.getElementById('winter-cd-sec').value||0,10),
-    cooldown_ms: parseInt(document.getElementById('winter-cd-ms').value||0,10),
-    rearm_on_clear: isOn('winter-rearm'),
-  };
-}
-
 function applyFishConfig(c){
   document.getElementById('fish-x').value = c.x;
   document.getElementById('fish-y').value = c.y;
@@ -194,23 +163,6 @@ function applyFishConfig(c){
   document.getElementById('fish-natural').classList.toggle('on', !!c.natural);
   document.getElementById('fish-autorecast').classList.toggle('on', !!c.auto_recast);
   document.getElementById('fish-recastgap').value = c.recast_gap;
-}
-
-function applyWinterConfig(c){
-  document.getElementById('winter-x').value = c.x;
-  document.getElementById('winter-y').value = c.y;
-  document.getElementById('winter-r').value = c.r;
-  document.getElementById('winter-g').value = c.g;
-  document.getElementById('winter-b').value = c.b;
-  document.getElementById('winter-tol').value = c.tol;
-  document.getElementById('winter-clicks').value = c.clicks;
-  document.getElementById('winter-sec').value = c.interval_s;
-  document.getElementById('winter-ms').value = c.interval_ms;
-  document.getElementById('winter-cd-sec').value = c.cooldown_s;
-  document.getElementById('winter-cd-ms').value = c.cooldown_ms;
-  document.getElementById('winter-rearm').classList.toggle('on', c.rearm_on_clear !== false);
-  updateSwatches();
-  updateWinterTotal();
 }
 
 function seaConfig(){
@@ -294,30 +246,6 @@ function toggleFish(){
   }
 }
 
-function toggleWinter(){
-  if (!api) return toast('Bridge indisponibil', 'error');
-  const btn = document.getElementById('winter-toggle');
-  if (!state.winter.running){
-    btn.disabled = true;
-    api.start_winter(winterConfig()).then(res=>{
-      btn.disabled = false;
-      if (res && res.ok){
-        state.winter.running = true;
-        state.winter.startedAt = Date.now();
-        btn.innerHTML = '<span class="ic">■</span> Stop Winter';
-        btn.classList.remove('primary'); btn.classList.add('danger','running');
-        setChip('winter', true, 'Winter ruleaza');
-        document.getElementById('dot-winter').classList.add('on');
-      } else {
-        toast('Nu am putut porni: ' + (res && res.error || '?'), 'error');
-      }
-    });
-  } else {
-    btn.disabled = true;
-    api.stop_winter().then(()=>{ btn.disabled = false; });
-  }
-}
-
 function toggleSea(){
   if (!api) return toast('Bridge indisponibil', 'error');
   const btn = document.getElementById('sea-toggle');
@@ -328,9 +256,9 @@ function toggleSea(){
       if (res && res.ok){
         state.sea.running = true;
         state.sea.startedAt = Date.now();
-        btn.innerHTML = '<span class="ic">■</span> Stop Sea Creatures';
+        btn.innerHTML = '<span class="ic">■</span> Stop Winter';
         btn.classList.remove('primary'); btn.classList.add('danger','running');
-        setChip('sea', true, 'Sea activ');
+        setChip('sea', true, 'Winter activ');
         document.getElementById('dot-sea').classList.add('on');
       } else {
         toast('Nu am putut porni: ' + (res && res.error || '?'), 'error');
@@ -349,9 +277,8 @@ function setChip(which, live, text){
 }
 
 const WORKER_META = {
-  fish:   { startLabel:'Start Macro',          runningTxt:'Macro ruleaza', stoppedTxt:'Macro oprit', statEl:'s-fstate' },
-  winter: { startLabel:'Start Winter',         runningTxt:'Winter ruleaza', stoppedTxt:'Winter oprit', statEl:null },
-  sea:    { startLabel:'Start Sea Creatures',  runningTxt:'Sea activ',     stoppedTxt:'Sea oprit',   statEl:'s-seastate' },
+  fish: { startLabel:'Start Macro',  runningTxt:'Macro ruleaza',  stoppedTxt:'Macro oprit',  statEl:'s-fstate' },
+  sea:  { startLabel:'Start Winter', runningTxt:'Winter activ',   stoppedTxt:'Winter oprit', statEl:'s-seastate' },
 };
 
 function onWorkerStopped(which){
@@ -399,11 +326,6 @@ function tickClock(){
     const mins = (Date.now()-state.fish.startedAt)/60000;
     document.getElementById('s-rate').textContent = mins>0 ? (state.stats.catches/mins).toFixed(1) : '0.0';
   }
-  if (state.winter.running && state.winter.startedAt){
-    const t = fmtClock(Date.now()-state.winter.startedAt);
-    document.getElementById('winter-runtime').textContent = t;
-    document.getElementById('s-wruntime').textContent = t;
-  }
   if (state.sea.running && state.sea.startedAt){
     const t = fmtClock(Date.now()-state.sea.startedAt);
     document.getElementById('sea-runtime').textContent = t;
@@ -421,7 +343,7 @@ function pollEvents(){
 }
 
 function processEvent(ev){
-  const src = ev.source;      // 'fish' | 'winter'
+  const src = ev.source;      // 'fish' | 'sea' (afisat ca "Winter")
   const type = ev.type;
   const args = ev.args || [];
 
@@ -437,13 +359,6 @@ function processEvent(ev){
     state.stats.recals = args[0];
     document.getElementById('fish-recals').textContent = args[0];
     document.getElementById('s-recals').textContent = args[0];
-  } else if (type === 'trigger'){
-    state.stats.triggers = args[0];
-    state.stats.wclicks += args[1] || 0;
-    document.getElementById('winter-triggers').textContent = args[0];
-    document.getElementById('s-triggers').textContent = args[0];
-    document.getElementById('winter-clicksdone').textContent = state.stats.wclicks;
-    document.getElementById('s-wclicks').textContent = state.stats.wclicks;
   } else if (type === 'grinch'){
     state.stats.grinch = args[0];
     document.getElementById('sea-grinch-kills').textContent = args[0];
@@ -467,7 +382,7 @@ function appendLog(src, level, msg){
   line.className = `log-line lv-${level} src-${src}`;
   if (state.logFilter !== 'all' && state.logFilter !== src) line.style.display = 'none';
   const ts = new Date().toLocaleTimeString('ro-RO', {hour12:false});
-  const tagTxt = src === 'fish' ? 'MACRO' : (src === 'winter' ? 'WINTER' : 'SEA');
+  const tagTxt = src === 'fish' ? 'MACRO' : 'WINTER';
   line.innerHTML = `<span class="ts">${ts}</span><span class="tag">[${tagTxt}]</span><span class="msg"></span>`;
   line.querySelector('.msg').textContent = msg;
   box.appendChild(line);
@@ -489,7 +404,7 @@ function clearLog(){
 
 /* ── Profiles ──────────────────────────────────────────────────────── */
 function currentFullState(){
-  return { fish: fishConfig(), winter: winterConfig(), sea: seaConfig() };
+  return { fish: fishConfig(), sea: seaConfig() };
 }
 
 function saveProfile(){
@@ -537,7 +452,6 @@ function loadProfile(name){
   api.load_profile(name).then(res=>{
     if (res && res.ok && res.state){
       if (res.state.fish) applyFishConfig(res.state.fish);
-      if (res.state.winter) applyWinterConfig(res.state.winter);
       if (res.state.sea) applySeaConfig(res.state.sea);
       toast(`Profil "${name}" incarcat`, 'success');
     } else {
