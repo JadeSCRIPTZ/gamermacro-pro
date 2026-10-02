@@ -415,6 +415,10 @@ class SeaWorker(_Worker):
         if self.stopping:
             return None, cycles
         self.backend.press_key(c.rod_key)
+        if not self._wait(c.action_delay):
+            return None, cycles
+        self.backend.click("right")  # arunca undita la loc in apa - aici chiar e nevoie,
+        # spre deosebire de Grinch, unde a ramas pe undita tot timpul si se recasteaza singura
         return killed, cycles
 
     def _fight_nutcracker(self) -> Optional[bool]:

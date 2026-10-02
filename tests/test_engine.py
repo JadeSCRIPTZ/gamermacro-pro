@@ -233,6 +233,40 @@ class Sea(unittest.TestCase):
         self.assertEqual(b.keys[-1][1], "1")
         self.assertEqual(b.clicks[0][1], "right")
 
+    def test_nutcracker_recasts_rod_after_kill(self):
+        # regresie: dupa ce revine pe slotul undita, trebuie SA O SI ARUNCE
+        # (click dreapta) - doar schimbarea de slot nu e de-ajuns, spre
+        # deosebire de Grinch, unde nu se umbla deloc de pe undita.
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF,
+                           nutcracker_fn=lambda t: N_ON if t < 0.05 else N_OFF)
+        w = run(SeaWorker(self.cfg(fire_duration=0.15), b, lambda *a: None, poll=0.01), 0.4)
+        self.assertEqual(w.nutcracker_kills, 1)
+        self.assertEqual(b.keys[-1][1], "1")        # ultima tasta: undita
+        self.assertEqual(b.clicks[-1][1], "right")  # ultimul click: arunca undita
+        self.assertGreaterEqual(b.clicks[-1][0], b.keys[-1][0])  # click-ul vine DUPA tasta
+
+    def test_nutcracker_recasts_rod_even_when_giving_up(self):
+        # si cand renunta (plafon atins fara sa moara), tot trebuie sa arunce
+        # undita la final, altfel pescuitul normal ramane blocat fara undita in apa.
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF, nutcracker_fn=lambda t: N_ON)
+        w = run(SeaWorker(self.cfg(fire_duration=0.05, max_cycles=2), b,
+                          lambda *a: None, poll=0.01), 0.5)
+        self.assertEqual(w.nutcracker_fails, 1)
+        self.assertEqual(b.keys[-1][1], "1")
+        self.assertEqual(b.clicks[-1][1], "right")
+
+    def test_grinch_never_touches_rod_or_recasts(self):
+        # Grinch ramane pe undita tot timpul - nicio tasta, niciun click dreapta.
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_ON if t < 0.08 else G_OFF,
+                           nutcracker_fn=lambda t: N_OFF)
+        w = run(SeaWorker(self.cfg(), b, lambda *a: None, poll=0.01), 0.3)
+        self.assertEqual(w.grinch_kills, 1)
+        self.assertEqual(b.keys, [])
+        self.assertTrue(all(btn == "left" for _, btn in b.clicks))
+
     def test_action_delay_separates_fire_click_and_sword_key(self):
         # regresie pt bug-ul "nu schimba pe sabie": trebuie sa fie o pauza masurabila
         # intre apasarea pe 3, click dreapta si apasarea pe 2 - nu toate deodata.
