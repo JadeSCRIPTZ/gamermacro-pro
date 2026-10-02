@@ -24,12 +24,13 @@ class FakeBackend(Backend):
 
 
 class SeaFakeBackend(Backend):
-    """Doi pixeli independenti (Grinch / Nutcracker) dupa pozitie, plus tastatura."""
+    """Trei pixeli independenti (Grinch / Nutcracker / Yeti) dupa pozitie, plus tastatura."""
 
-    def __init__(self, grinch_xy, nutcracker_xy, grinch_fn, nutcracker_fn):
+    def __init__(self, grinch_xy, nutcracker_xy, grinch_fn, nutcracker_fn,
+                 yeti_xy=(99, 99), yeti_fn=lambda t: (0, 0, 0)):
         self.t0 = time.monotonic()
-        self.gxy, self.nxy = grinch_xy, nutcracker_xy
-        self.gfn, self.nfn = grinch_fn, nutcracker_fn
+        self.gxy, self.nxy, self.yxy = grinch_xy, nutcracker_xy, yeti_xy
+        self.gfn, self.nfn, self.yfn = grinch_fn, nutcracker_fn, yeti_fn
         self.clicks, self.keys = [], []
 
     def now(self): return time.monotonic() - self.t0
@@ -40,6 +41,8 @@ class SeaFakeBackend(Backend):
             return self.gfn(t)
         if (x, y) == self.nxy:
             return self.nfn(t)
+        if (x, y) == self.yxy:
+            return self.yfn(t)
         return (0, 0, 0)
 
     def position(self): return (10, 10)
@@ -164,6 +167,7 @@ class Fishing(unittest.TestCase):
 
 G_ON, G_OFF = (255, 30, 30), (0, 0, 0)   # Grinch: inima rosie / absenta
 N_ON, N_OFF = (30, 220, 30), (0, 0, 0)   # Nutcracker: nume verde / absent
+Y_ON, Y_OFF = (120, 200, 255), (0, 0, 0)  # Yeti: nume albastru / absent
 
 
 class Sea(unittest.TestCase):
@@ -171,9 +175,11 @@ class Sea(unittest.TestCase):
         base = dict(
             grinch=PixelSpec(1, 1, *G_ON, 15),
             nutcracker=PixelSpec(2, 2, *N_ON, 15),
+            yeti=PixelSpec(3, 3, *Y_ON, 15),
             rod_key="1", sword_key="2", fire_key="3",
             fire_duration=0.1, grinch_interval=0.02, sword_interval=0.02,
             jitter=0.0, max_cycles=3, grinch_timeout=0.5,
+            grinch_delay=0.0, action_delay=0.0,  # rapid in teste; cazuri dedicate mai jos
         )
         base.update(kw)
         return SeaConfig(**base)
@@ -212,6 +218,43 @@ class Sea(unittest.TestCase):
         self.assertEqual(w.nutcracker_kills, 1)
         fire_presses = [k for k in b.keys if k[1] == "3"]
         self.assertEqual(len(fire_presses), 2)
+
+    def test_yeti_single_cycle_then_dead(self):
+        # acelasi sistem ca Nutcracker, dar pe pixelul si contoarele proprii lui Yeti
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF, nutcracker_fn=lambda t: N_OFF,
+                           yeti_xy=(3, 3), yeti_fn=lambda t: Y_ON if t < 0.05 else Y_OFF)
+        w = run(SeaWorker(self.cfg(fire_duration=0.15), b, lambda *a: None, poll=0.01), 0.4)
+        self.assertEqual(w.yeti_kills, 1)
+        self.assertEqual(w.yeti_fails, 0)
+        self.assertEqual(w.nutcracker_kills, 0)  # independent de Nutcracker
+        self.assertEqual(b.keys[0][1], "3")
+        self.assertEqual(b.keys[1][1], "2")
+        self.assertEqual(b.keys[-1][1], "1")
+        self.assertEqual(b.clicks[0][1], "right")
+
+    def test_action_delay_separates_fire_click_and_sword_key(self):
+        # regresie pt bug-ul "nu schimba pe sabie": trebuie sa fie o pauza masurabila
+        # intre apasarea pe 3, click dreapta si apasarea pe 2 - nu toate deodata.
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF,
+                           nutcracker_fn=lambda t: N_ON if t < 0.05 else N_OFF)
+        w = run(SeaWorker(self.cfg(fire_duration=0.3, action_delay=0.05), b,
+                          lambda *a: None, poll=0.01), 0.6)
+        self.assertEqual(w.nutcracker_kills, 1)
+        fire_t = b.keys[0][0]
+        sword_t = b.keys[1][0]
+        right_click_t = b.clicks[0][0]
+        self.assertGreaterEqual(right_click_t - fire_t, 0.03)
+        self.assertGreaterEqual(sword_t - right_click_t, 0.03)
+
+    def test_grinch_delay_waits_before_first_click(self):
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_ON if t < 0.3 else G_OFF,
+                           nutcracker_fn=lambda t: N_OFF)
+        w = run(SeaWorker(self.cfg(grinch_delay=0.15), b, lambda *a: None, poll=0.01), 0.5)
+        self.assertEqual(w.grinch_kills, 1)
+        self.assertGreaterEqual(b.clicks[0][0], 0.12)
 
     def test_nutcracker_gives_up_after_max_cycles(self):
         b = SeaFakeBackend((1, 1), (2, 2),

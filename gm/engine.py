@@ -49,11 +49,13 @@ class FishConfig:
 
 @dataclass
 class SeaConfig:
-    """Recunoaste Grinch (inima rosie) / Nutcracker (numele verde) si lupta automat."""
+    """Recunoaste Grinch (inima rosie) / Nutcracker si Yeti (foc+sabie) si lupta automat."""
     grinch: PixelSpec = field(
         default_factory=lambda: PixelSpec(0, 0, 255, 60, 60, 20))
     nutcracker: PixelSpec = field(
         default_factory=lambda: PixelSpec(0, 0, 60, 200, 60, 20))
+    yeti: PixelSpec = field(
+        default_factory=lambda: PixelSpec(0, 0, 120, 200, 255, 20))
     rod_key: str = "1"
     sword_key: str = "2"
     fire_key: str = "3"
@@ -61,8 +63,11 @@ class SeaConfig:
     grinch_interval: float = 0.35  # interval de baza intre click-uri la Grinch
     sword_interval: float = 0.35   # interval de baza intre click-uri cu sabia
     jitter: float = 0.08           # variatie aleatoare +/- pe fiecare interval (anti-pattern robotic)
-    max_cycles: int = 8            # plafon siguranta: cicluri foc+sabie la Nutcracker
+    max_cycles: int = 8            # plafon siguranta: cicluri foc+sabie la Nutcracker/Yeti
     grinch_timeout: float = 6.0    # plafon siguranta: cat batem Grinch-ul inainte sa renuntam
+    grinch_delay: float = 0.0      # asteapta atat inainte de primul click la Grinch
+    action_delay: float = 0.05     # mica pauza intre taste/click-uri la foc+sabie (jocul are nevoie
+                                    # de un moment sa inregistreze fiecare actiune separat)
 
 
 # ── Backend (ecran + mouse) ──────────────────────────────────────────────────
@@ -315,12 +320,17 @@ class FishingWorker(_Worker):
 
 
 class SeaWorker(_Worker):
-    """Al treilea detector: recunoaste Grinch/Nutcracker dupa culoare si lupta automat.
+    """Al treilea detector: recunoaste Grinch/Nutcracker/Yeti dupa culoare si lupta automat.
 
-    Grinch (HP mic) -> atac cu ce ai in mana (undita), click stanga pana dispare.
-    Nutcracker (HP mare) -> cicluri de: foc (tasta+click dreapta) urmat imediat
-    de sabie (tasta+click stanga in bucla), cronometrate de la activarea focului,
-    pana dispare sau se atinge plafonul de cicluri.
+    Grinch (HP mic) -> asteapta grinch_delay (optional), apoi atac cu ce ai in
+    mana (undita), click stanga pana dispare.
+
+    Nutcracker si Yeti (HP mare) -> acelasi sistem de foc+sabie: cicluri de
+    foc (tasta+click dreapta) urmat de sabie (tasta+click stanga in bucla),
+    cronometrate de la activarea focului, pana dispare sau se atinge plafonul
+    de cicluri. Intre fiecare tasta/click din secventa de foc+sabie exista o
+    mica pauza (action_delay) ca jocul sa apuce sa inregistreze fiecare
+    actiune separat (fara ea, schimbarea pe sabie poate sa nu se produca).
     """
     kind = "sea"
 
@@ -330,6 +340,8 @@ class SeaWorker(_Worker):
         self.grinch_kills = 0
         self.nutcracker_kills = 0
         self.nutcracker_fails = 0
+        self.yeti_kills = 0
+        self.yeti_fails = 0
 
     def _hit(self, px: PixelSpec) -> bool:
         return px.hit(self.backend.pixel(px.x, px.y))
@@ -339,6 +351,8 @@ class SeaWorker(_Worker):
         c = self.cfg
         self.state("GRINCH")
         self.log("warn", "Grinch detectat — atac cu ce am in mana…")
+        if c.grinch_delay > 0 and not self._wait(c.grinch_delay):
+            return None
         t0 = time.monotonic()
         clicks = 0
         gave_up = False
@@ -361,61 +375,96 @@ class SeaWorker(_Worker):
         self.log("ok", f"[Grinch #{n}] Gata — {clicks} click-uri.")
         return True
 
-    def _fight_nutcracker(self) -> Optional[bool]:
-        """True = a murit, False = plafon atins fara sa moara, None = s-a cerut stop."""
+    def _fight_big(self, name: str, pixel: PixelSpec) -> Tuple[Optional[bool], int]:
+        """Sistemul comun foc+sabie, folosit de Nutcracker si Yeti.
+
+        Returneaza (rezultat, cicluri): rezultat True = a murit, False = plafon
+        atins fara sa moara, None = s-a cerut stop (cicluri e oricum util pt log).
+        """
         c = self.cfg
-        self.state("NUTCRACKER")
-        self.log("warn", "Nutcracker detectat — secventa foc + sabie…")
+        self.state(name.upper())
+        self.log("warn", f"{name} detectat — secventa foc + sabie…")
         killed = False
         cycles = 0
         while not self.stopping and cycles < c.max_cycles:
-            if not self._hit(c.nutcracker):
+            if not pixel.hit(self.backend.pixel(pixel.x, pixel.y)):
                 killed = True
                 break
             cycles += 1
             self.backend.press_key(c.fire_key)
+            if not self._wait(c.action_delay):
+                return None, cycles
             self.backend.click("right")
-            t0 = time.monotonic()
+            t0 = time.monotonic()  # cronometrul celor fire_duration secunde incepe de aici
+            if not self._wait(c.action_delay):
+                return None, cycles
             self.backend.press_key(c.sword_key)
-            self.log("dim", f"[Nutcracker] ciclul {cycles}/{c.max_cycles}: foc pornit, "
+            if not self._wait(c.action_delay):
+                return None, cycles
+            self.log("dim", f"[{name}] ciclul {cycles}/{c.max_cycles}: foc pornit, "
                              f"atac {c.fire_duration:g}s…")
             while not self.stopping and time.monotonic() - t0 < c.fire_duration:
                 self.backend.click("left")
-                if not self._hit(c.nutcracker):
+                if not pixel.hit(self.backend.pixel(pixel.x, pixel.y)):
                     killed = True
                     break
                 if not self._wait(self._jittered(c.sword_interval, c.jitter)):
-                    return None
+                    return None, cycles
             if killed:
                 break
         if self.stopping:
-            return None
+            return None, cycles
         self.backend.press_key(c.rod_key)
+        return killed, cycles
+
+    def _fight_nutcracker(self) -> Optional[bool]:
+        killed, cycles = self._fight_big("Nutcracker", self.cfg.nutcracker)
+        if killed is None:
+            return None
         if killed:
             self.nutcracker_kills += 1
             n = self.nutcracker_kills
             self._emit("nutcracker", n, cycles, True)
             self.log("ok", f"[Nutcracker #{n}] Mort dupa {cycles} cicluri. Revin la undita.")
-            return True
-        self.nutcracker_fails += 1
-        self._emit("nutcracker", self.nutcracker_kills, cycles, False)
-        self.log("err", f"[Nutcracker] Plafon de {c.max_cycles} cicluri atins fara sa "
-                         f"moara — revin la undita si astept sa dispara.")
-        return False
+        else:
+            self.nutcracker_fails += 1
+            self._emit("nutcracker", self.nutcracker_kills, cycles, False)
+            self.log("err", f"[Nutcracker] Plafon de {self.cfg.max_cycles} cicluri atins fara "
+                             f"sa moara — revin la undita si astept sa dispara.")
+        return killed
+
+    def _fight_yeti(self) -> Optional[bool]:
+        killed, cycles = self._fight_big("Yeti", self.cfg.yeti)
+        if killed is None:
+            return None
+        if killed:
+            self.yeti_kills += 1
+            n = self.yeti_kills
+            self._emit("yeti", n, cycles, True)
+            self.log("ok", f"[Yeti #{n}] Mort dupa {cycles} cicluri. Revin la undita.")
+        else:
+            self.yeti_fails += 1
+            self._emit("yeti", self.yeti_kills, cycles, False)
+            self.log("err", f"[Yeti] Plafon de {self.cfg.max_cycles} cicluri atins fara sa "
+                             f"moara — revin la undita si astept sa dispara.")
+        return killed
 
     def _run(self) -> None:
         c = self.cfg
         self.log("hi",
                  f"SEA START  grinch=({c.grinch.x},{c.grinch.y})  "
                  f"nutcracker=({c.nutcracker.x},{c.nutcracker.y})  "
+                 f"yeti=({c.yeti.x},{c.yeti.y})  "
                  f"foc={c.fire_duration:g}s  plafon={c.max_cycles} cicluri  "
                  f"taste={c.rod_key}/{c.sword_key}/{c.fire_key}")
         self.state("WATCH")
         # "armed" = putem ataca daca apare; dupa un esec (plafon atins fara sa moara)
         # se dezarmeaza pana dispare culoarea, ca sa nu reatace la nesfarsit acelasi mob blocat.
-        g_armed = n_armed = True
+        g_armed = n_armed = y_armed = True
         while not self.stopping:
-            g_hit, n_hit = self._hit(c.grinch), self._hit(c.nutcracker)
+            g_hit = self._hit(c.grinch)
+            n_hit = self._hit(c.nutcracker)
+            y_hit = self._hit(c.yeti)
 
             if g_hit and g_armed:
                 result = self._fight_grinch()
@@ -429,12 +478,20 @@ class SeaWorker(_Worker):
                     break
                 n_armed = result
                 self.state("WATCH" if n_armed else "STUCK")
+            elif y_hit and y_armed:
+                result = self._fight_yeti()
+                if result is None:
+                    break
+                y_armed = result
+                self.state("WATCH" if y_armed else "STUCK")
             else:
                 rearmed = False
                 if not g_hit and not g_armed:
                     g_armed, rearmed = True, True
                 if not n_hit and not n_armed:
                     n_armed, rearmed = True, True
+                if not y_hit and not y_armed:
+                    y_armed, rearmed = True, True
                 if rearmed:
                     self.state("WATCH")
             if not self._wait(self.poll):

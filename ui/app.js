@@ -6,7 +6,7 @@
 const state = {
   fish: { running:false, uiState:'IDLE', startedAt:null },
   sea:  { running:false, uiState:'IDLE', startedAt:null },  // "Winter" (Grinch & Nutcracker)
-  stats: { catches:0, recals:0, skips:0, grinch:0, nutKills:0, nutFails:0 },
+  stats: { catches:0, recals:0, skips:0, grinch:0, nutKills:0, nutFails:0, yetiKills:0, yetiFails:0 },
   logFilter: 'all',
 };
 
@@ -55,7 +55,7 @@ function bindNav(){
 }
 
 /* ── Inputs / derived displays ─────────────────────────────────────── */
-const PIXEL_PREFIXES = ['fish','grinch','nutcracker'];
+const PIXEL_PREFIXES = ['fish','grinch','nutcracker','yeti'];
 
 function bindInputs(){
   PIXEL_PREFIXES.forEach(p=>{
@@ -183,6 +183,14 @@ function seaConfig(){
       b: clamp255(document.getElementById('nutcracker-b').value),
       tol: parseInt(document.getElementById('nutcracker-tol').value||0,10),
     },
+    yeti: {
+      x: parseInt(document.getElementById('yeti-x').value||0,10),
+      y: parseInt(document.getElementById('yeti-y').value||0,10),
+      r: clamp255(document.getElementById('yeti-r').value),
+      g: clamp255(document.getElementById('yeti-g').value),
+      b: clamp255(document.getElementById('yeti-b').value),
+      tol: parseInt(document.getElementById('yeti-tol').value||0,10),
+    },
     rod_key: document.getElementById('sea-rod-key').value || '1',
     sword_key: document.getElementById('sea-sword-key').value || '2',
     fire_key: document.getElementById('sea-fire-key').value || '3',
@@ -192,11 +200,13 @@ function seaConfig(){
     jitter: parseFloat(document.getElementById('sea-jitter').value||0.08),
     max_cycles: parseInt(document.getElementById('sea-max-cycles').value||8,10),
     grinch_timeout: parseFloat(document.getElementById('sea-grinch-timeout').value||6.0),
+    grinch_delay: parseFloat(document.getElementById('sea-grinch-delay').value||0),
+    action_delay: parseFloat(document.getElementById('sea-action-delay').value||0.05),
   };
 }
 
 function applySeaConfig(c){
-  const g = c.grinch||{}, n = c.nutcracker||{};
+  const g = c.grinch||{}, n = c.nutcracker||{}, y = c.yeti||{};
   document.getElementById('grinch-x').value = g.x||0;
   document.getElementById('grinch-y').value = g.y||0;
   document.getElementById('grinch-r').value = g.r||0;
@@ -209,6 +219,12 @@ function applySeaConfig(c){
   document.getElementById('nutcracker-g').value = n.g||0;
   document.getElementById('nutcracker-b').value = n.b||0;
   document.getElementById('nutcracker-tol').value = n.tol||0;
+  document.getElementById('yeti-x').value = y.x||0;
+  document.getElementById('yeti-y').value = y.y||0;
+  document.getElementById('yeti-r').value = y.r||0;
+  document.getElementById('yeti-g').value = y.g||0;
+  document.getElementById('yeti-b').value = y.b||0;
+  document.getElementById('yeti-tol').value = y.tol||0;
   document.getElementById('sea-rod-key').value = c.rod_key||'1';
   document.getElementById('sea-sword-key').value = c.sword_key||'2';
   document.getElementById('sea-fire-key').value = c.fire_key||'3';
@@ -218,6 +234,8 @@ function applySeaConfig(c){
   document.getElementById('sea-jitter').value = c.jitter||0.08;
   document.getElementById('sea-max-cycles').value = c.max_cycles||8;
   document.getElementById('sea-grinch-timeout').value = c.grinch_timeout||6.0;
+  document.getElementById('sea-grinch-delay').value = c.grinch_delay||0;
+  document.getElementById('sea-action-delay').value = (c.action_delay===undefined?0.05:c.action_delay);
   updateSwatches();
 }
 
@@ -297,7 +315,7 @@ function onWorkerStopped(which){
 const STATE_LABELS = {
   RESET:'RESET', WATCH:'URMARIRE', PREWAIT:'PRE-WAIT', PAUSED:'PAUZA (Sea)',
   IDLE:'OPRIT', CLICKING:'CLICK...', COOLDOWN:'PAUZA', WAIT_CLEAR:'ASTEPT CULOARE',
-  GRINCH:'GRINCH!', NUTCRACKER:'NUTCRACKER!', STUCK:'BLOCAT — ASTEPT',
+  GRINCH:'GRINCH!', NUTCRACKER:'NUTCRACKER!', YETI:'YETI!', STUCK:'BLOCAT — ASTEPT',
 };
 function setState(which, name){
   state[which].uiState = name;
@@ -368,8 +386,15 @@ function processEvent(ev){
     if (args[2] === false) state.stats.nutFails += 1;
     document.getElementById('sea-nut-kills').textContent = state.stats.nutKills;
     document.getElementById('s-nutkills').textContent = state.stats.nutKills;
-    document.getElementById('sea-nut-fails').textContent = state.stats.nutFails;
     document.getElementById('s-nutfails').textContent = state.stats.nutFails;
+    document.getElementById('sea-nut-fails').textContent = state.stats.nutFails + state.stats.yetiFails;
+  } else if (type === 'yeti'){
+    state.stats.yetiKills = args[0];
+    if (args[2] === false) state.stats.yetiFails += 1;
+    document.getElementById('sea-yeti-kills').textContent = state.stats.yetiKills;
+    document.getElementById('s-yetikills').textContent = state.stats.yetiKills;
+    document.getElementById('s-yetifails').textContent = state.stats.yetiFails;
+    document.getElementById('sea-nut-fails').textContent = state.stats.nutFails + state.stats.yetiFails;
   } else if (type === 'stopped'){
     onWorkerStopped(src);
   }

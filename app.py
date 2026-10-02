@@ -60,6 +60,7 @@ def _sea_config(cfg: dict) -> SeaConfig:
     return SeaConfig(
         grinch=_pixel_from(cfg.get("grinch", {})),
         nutcracker=_pixel_from(cfg.get("nutcracker", {})),
+        yeti=_pixel_from(cfg.get("yeti", {})),
         rod_key=str(cfg.get("rod_key", "1"))[:1] or "1",
         sword_key=str(cfg.get("sword_key", "2"))[:1] or "2",
         fire_key=str(cfg.get("fire_key", "3"))[:1] or "3",
@@ -69,6 +70,8 @@ def _sea_config(cfg: dict) -> SeaConfig:
         jitter=float(cfg.get("jitter", 0.08) or 0.0),
         max_cycles=max(1, int(cfg.get("max_cycles", 8) or 8)),
         grinch_timeout=float(cfg.get("grinch_timeout", 6.0) or 6.0),
+        grinch_delay=float(cfg.get("grinch_delay", 0.0) or 0.0),
+        action_delay=float(cfg.get("action_delay", 0.05) or 0.0),
     )
 
 
@@ -171,6 +174,7 @@ class Api:
             sc = _sea_config(cfg)
             check_bounds(backend, sc.grinch)
             check_bounds(backend, sc.nutcracker)
+            check_bounds(backend, sc.yeti)
             self.sea_worker = SeaWorker(sc, backend, self._sea_emit())
             self.sea_worker.start()
             return {"ok": True}

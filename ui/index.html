@@ -205,11 +205,38 @@
             <div class="hint">Pune cursorul pe inceputul numelui "Nutcracker" (verde) cand apare, apoi apasa — 3 secunde.</div>
           </div>
 
+          <div class="card span-2">
+            <div class="card-title"><span class="ic">🎯</span>Pixel — Yeti (numele)</div>
+            <div class="picker-box">
+              <button class="btn primary pick-btn" id="pick-yeti" onclick="pickPixel('yeti')">
+                <span class="count">3</span>
+                <span class="label"><span class="ic">🎯</span> Selecteaza Pixelul</span>
+              </button>
+              <div class="picker-info">
+                <div class="pos">X=<span id="yeti-x-r">0</span> Y=<span id="yeti-y-r">0</span></div>
+                <div class="col">RGB(<span id="yeti-r-r">120</span>, <span id="yeti-g-r">200</span>, <span id="yeti-b-r">255</span>)</div>
+                <div class="hex" id="yeti-hex">#78c8ff</div>
+              </div>
+              <div class="swatch" id="yeti-swatch"></div>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <div class="field"><label>X</label><input type="number" id="yeti-x" value="0"></div>
+              <div class="field"><label>Y</label><input type="number" id="yeti-y" value="0"></div>
+            </div>
+            <div class="row">
+              <div class="field"><label>R</label><input type="number" id="yeti-r" value="120" min="0" max="255"></div>
+              <div class="field"><label>G</label><input type="number" id="yeti-g" value="200" min="0" max="255"></div>
+              <div class="field"><label>B</label><input type="number" id="yeti-b" value="255" min="0" max="255"></div>
+            </div>
+            <div class="hint">Pune cursorul pe inceputul numelui "Yeti" cand apare, apoi apasa — 3 secunde. Acelasi sistem foc+sabie ca la Nutcracker.</div>
+          </div>
+
           <div class="card">
             <div class="card-title"><span class="ic">📍</span>Toleranta</div>
             <div class="row">
               <div class="field"><label>Grinch Tol ±</label><input type="number" id="grinch-tol" value="15" min="0" max="255"></div>
               <div class="field"><label>Nutcracker Tol ±</label><input type="number" id="nutcracker-tol" value="15" min="0" max="255"></div>
+              <div class="field"><label>Yeti Tol ±</label><input type="number" id="yeti-tol" value="15" min="0" max="255"></div>
             </div>
           </div>
 
@@ -222,8 +249,8 @@
             </div>
           </div>
 
-          <div class="card">
-            <div class="card-title"><span class="ic">🔥</span>Foc + Sabie (Nutcracker)</div>
+          <div class="card span-2">
+            <div class="card-title"><span class="ic">🔥</span>Foc + Sabie (Nutcracker &amp; Yeti — acelasi sistem)</div>
             <div class="row">
               <div class="field"><label>Durata foc / fereastra atac (s)</label><input type="number" step="0.1" id="sea-fire-duration" value="5.0"></div>
               <div class="field"><label>Interval click sabie (s)</label><input type="number" step="0.05" id="sea-sword-interval" value="0.35"></div>
@@ -232,16 +259,22 @@
               <div class="field"><label>Plafon cicluri (siguranta)</label><input type="number" id="sea-max-cycles" value="8" min="1" max="30"></div>
               <div class="field"><label>Jitter click-uri (± s)</label><input type="number" step="0.01" id="sea-jitter" value="0.08"></div>
             </div>
-            <div class="hint">Un ciclu = apasa 3, click dreapta, apasa 2 imediat, atac cat tine "durata foc". Se repeta pana moare sau se atinge plafonul.</div>
+            <div class="row">
+              <div class="field"><label>Pauza intre taste/click-uri (s)</label><input type="number" step="0.01" id="sea-action-delay" value="0.05"></div>
+            </div>
+            <div class="hint">Un ciclu = apasa 3, (pauza), click dreapta, (pauza), apasa 2, (pauza), atac cat tine "durata foc". Se repeta pana moare sau se atinge plafonul. Pauza intre taste/click-uri e ca sa dea timp jocului sa inregistreze fiecare actiune — daca sare direct pe sabie fara sa schimbe slotul, mareste putin valoarea asta.</div>
           </div>
 
           <div class="card">
             <div class="card-title"><span class="ic">🎣</span>Grinch</div>
             <div class="row">
+              <div class="field"><label>Asteptare inainte de atac (s)</label><input type="number" step="0.05" id="sea-grinch-delay" value="0"></div>
               <div class="field"><label>Interval click (s)</label><input type="number" step="0.05" id="sea-grinch-interval" value="0.35"></div>
+            </div>
+            <div class="row">
               <div class="field"><label>Plafon siguranta (s)</label><input type="number" step="0.5" id="sea-grinch-timeout" value="6.0"></div>
             </div>
-            <div class="hint">Ramane pe undita — click stanga pana dispare indicatorul, fara schimbare de slot.</div>
+            <div class="hint">Ramane pe undita — asteapta (optional), apoi click stanga pana dispare indicatorul, fara schimbare de slot.</div>
           </div>
 
           <div class="run-panel span-2" style="grid-column:1/-1">
@@ -250,6 +283,7 @@
               <div class="meta">
                 <span>🎣 Grinch: <b id="sea-grinch-kills">0</b></span>
                 <span>🗡️ Nutcracker: <b id="sea-nut-kills">0</b></span>
+                <span>🧊 Yeti: <b id="sea-yeti-kills">0</b></span>
                 <span>⚠️ Renuntari: <b id="sea-nut-fails">0</b></span>
                 <span>⏱ <b id="sea-runtime">00:00</b></span>
               </div>
@@ -296,6 +330,8 @@
           <div class="stat-card"><div class="v" id="s-grinch">0</div><div class="l">Grinch uciși</div></div>
           <div class="stat-card"><div class="v" id="s-nutkills">0</div><div class="l">Nutcracker uciși</div></div>
           <div class="stat-card"><div class="v" id="s-nutfails">0</div><div class="l">Nutcracker renunțări</div></div>
+          <div class="stat-card"><div class="v" id="s-yetikills">0</div><div class="l">Yeti uciși</div></div>
+          <div class="stat-card"><div class="v" id="s-yetifails">0</div><div class="l">Yeti renunțări</div></div>
           <div class="stat-card"><div class="v" id="s-seastate">Oprit</div><div class="l">Stare curenta</div></div>
           <div class="stat-card"><div class="v" id="s-searuntime">00:00</div><div class="l">Runtime</div></div>
         </div>
