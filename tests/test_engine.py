@@ -296,6 +296,25 @@ class Sea(unittest.TestCase):
         self.assertEqual(b.keys, [])
         self.assertTrue(all(btn == "left" for _, btn in b.clicks))
 
+    def test_big_delay_waits_before_first_cycle_nutcracker(self):
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF,
+                           nutcracker_fn=lambda t: N_ON if t < 0.3 else N_OFF)
+        w = run(SeaWorker(self.cfg(big_delay=0.15), b, lambda *a: None, poll=0.01), 0.5)
+        self.assertEqual(w.nutcracker_kills, 1)
+        self.assertEqual(b.keys[0][1], "3")
+        self.assertGreaterEqual(b.keys[0][0], 0.12)  # prima tasta (foc) vine dupa delay
+
+    def test_big_delay_waits_before_first_cycle_yeti(self):
+        # acelasi camp, comun - se aplica si la Yeti, nu doar la Nutcracker
+        b = SeaFakeBackend((1, 1), (2, 2),
+                           grinch_fn=lambda t: G_OFF, nutcracker_fn=lambda t: N_OFF,
+                           yeti_xy=(3, 3), yeti_fn=lambda t: Y_ON if t < 0.3 else Y_OFF)
+        w = run(SeaWorker(self.cfg(big_delay=0.15), b, lambda *a: None, poll=0.01), 0.5)
+        self.assertEqual(w.yeti_kills, 1)
+        self.assertEqual(b.keys[0][1], "3")
+        self.assertGreaterEqual(b.keys[0][0], 0.12)
+
     def test_action_delay_separates_fire_click_and_sword_key(self):
         # regresie pt bug-ul "nu schimba pe sabie": trebuie sa fie o pauza masurabila
         # intre apasarea pe 3, click dreapta si apasarea pe 2 - nu toate deodata.

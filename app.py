@@ -72,6 +72,7 @@ def _sea_config(cfg: dict) -> SeaConfig:
         grinch_timeout=float(cfg.get("grinch_timeout", 6.0) or 6.0),
         grinch_delay=float(cfg.get("grinch_delay", 0.0) or 0.0),
         action_delay=float(cfg.get("action_delay", 0.05) or 0.0),
+        big_delay=float(cfg.get("big_delay", 0.0) or 0.0),
     )
 
 

@@ -202,6 +202,7 @@ function seaConfig(){
     grinch_timeout: parseFloat(document.getElementById('sea-grinch-timeout').value||6.0),
     grinch_delay: parseFloat(document.getElementById('sea-grinch-delay').value||0),
     action_delay: parseFloat(document.getElementById('sea-action-delay').value||0.05),
+    big_delay: parseFloat(document.getElementById('sea-big-delay').value||0),
   };
 }
 
@@ -236,6 +237,7 @@ function applySeaConfig(c){
   document.getElementById('sea-grinch-timeout').value = c.grinch_timeout||6.0;
   document.getElementById('sea-grinch-delay').value = c.grinch_delay||0;
   document.getElementById('sea-action-delay').value = (c.action_delay===undefined?0.05:c.action_delay);
+  document.getElementById('sea-big-delay').value = c.big_delay||0;
   updateSwatches();
 }
 

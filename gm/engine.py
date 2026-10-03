@@ -67,6 +67,8 @@ class SeaConfig:
     max_cycles: int = 8            # plafon siguranta: cicluri foc+sabie la Nutcracker/Yeti
     grinch_timeout: float = 6.0    # plafon siguranta: cat batem Grinch-ul inainte sa renuntam
     grinch_delay: float = 0.0      # asteapta atat inainte de primul click la Grinch
+    big_delay: float = 0.0         # asteapta atat inainte de primul ciclu foc+sabie
+                                    # (comun pt Nutcracker si Yeti - acelasi sistem)
     action_delay: float = 0.05     # mica pauza intre taste/click-uri la foc+sabie (jocul are nevoie
                                     # de un moment sa inregistreze fiecare actiune separat)
 
@@ -395,6 +397,8 @@ class SeaWorker(_Worker):
         c = self.cfg
         self.state(name.upper())
         self.log("warn", f"{name} detectat — secventa foc + sabie…")
+        if c.big_delay > 0 and not self._wait(c.big_delay):
+            return None, 0
         killed = False
         cycles = 0
         while not self.stopping and cycles < c.max_cycles:
