@@ -51,8 +51,8 @@ def _fish_config(cfg: dict) -> FishConfig:
         timeout=float(cfg.get("timeout", 0) or 0),
         pixel_wait=float(cfg.get("pixel_wait", 0) or 0),
         natural=bool(cfg.get("natural", False)),
-        auto_recast=bool(cfg.get("auto_recast", False)),
         recast_gap=float(cfg.get("recast_gap", 0.5) or 0.5),
+        slugfish_delay=float(cfg.get("slugfish_delay", 0) or 0),
     )
 
 

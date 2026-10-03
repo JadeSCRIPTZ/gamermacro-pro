@@ -144,8 +144,8 @@ function fishConfig(){
     timeout: parseFloat(document.getElementById('fish-timeout').value||0),
     pixel_wait: parseFloat(document.getElementById('fish-pixelwait').value||0),
     natural: isOn('fish-natural'),
-    auto_recast: isOn('fish-autorecast'),
     recast_gap: parseFloat(document.getElementById('fish-recastgap').value||0.5),
+    slugfish_delay: parseFloat(document.getElementById('fish-slugfish').value||0),
   };
 }
 
@@ -161,8 +161,8 @@ function applyFishConfig(c){
   document.getElementById('fish-timeout').value = c.timeout;
   document.getElementById('fish-pixelwait').value = c.pixel_wait;
   document.getElementById('fish-natural').classList.toggle('on', !!c.natural);
-  document.getElementById('fish-autorecast').classList.toggle('on', !!c.auto_recast);
   document.getElementById('fish-recastgap').value = c.recast_gap;
+  document.getElementById('fish-slugfish').value = c.slugfish_delay||0;
 }
 
 function seaConfig(){

@@ -122,14 +122,15 @@
               <div class="switch-label"><span class="n">Mod Natural</span><span class="d">8% sansa sa sara o detectie</span></div>
               <div class="switch" id="fish-natural" onclick="toggleSwitch('fish-natural')"></div>
             </div>
-            <div class="switch-row">
-              <div class="switch-label"><span class="n">Auto-Recast</span><span class="d">1 click in loc de 2</span></div>
-              <div class="switch" id="fish-autorecast" onclick="toggleSwitch('fish-autorecast')"></div>
-            </div>
             <div class="field" style="margin-top:12px">
               <label>Pauza intre cele 2 click-uri (s)</label>
               <input type="number" step="0.05" id="fish-recastgap" value="0.5">
             </div>
+            <div class="field" style="margin-top:12px">
+              <label>Slugfish — asteapta dupa aruncare (s, 0=off)</label>
+              <input type="number" step="0.5" id="fish-slugfish" value="0">
+            </div>
+            <div class="hint">Ignora musca pana trec atatea secunde de la ultima aruncare — abia dupa aceea trage la urmatoarea detectie.</div>
           </div>
 
           <div class="run-panel span-2" style="grid-column:1/-1">

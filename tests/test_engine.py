@@ -95,11 +95,40 @@ class Fishing(unittest.TestCase):
         w = run(FishingWorker(fish(), b, lambda *a: None, poll=0.01), 0.4)
         self.assertEqual((w.catches, len(b.clicks)), (0, 0))
 
-    def test_auto_recast_is_single_click(self):
+    def test_recast_is_always_two_clicks(self):
+        # auto_recast a fost scos - acum e mereu secventa standard de 2 click-uri
         b = FakeBackend(lambda t: HIT if t > 0.15 else MISS)
-        w = run(FishingWorker(fish(auto_recast=True), b, lambda *a: None, poll=0.01), 0.3)
+        w = run(FishingWorker(fish(), b, lambda *a: None, poll=0.01), 0.3)
         self.assertGreaterEqual(w.catches, 1)
-        self.assertEqual(len(b.clicks), w.catches)
+        self.assertEqual(len(b.clicks), w.catches * 2)
+
+    def test_slugfish_suppresses_bite_inside_window(self):
+        # musca tot timpul de la inceput (fals din punct de vedere al testului de
+        # debounce normal, dar Slugfish oricum ar ignora-o cat timp e in fereastra)
+        b = FakeBackend(lambda t: HIT if (t > 0.05) else MISS)
+        w = run(FishingWorker(fish(slugfish_delay=5.0), b, lambda *a: None, poll=0.01), 0.3)
+        self.assertEqual((w.catches, len(b.clicks)), (0, 0))
+
+    def test_slugfish_allows_catch_after_window(self):
+        b = FakeBackend(lambda t: HIT if (t > 0.05) else MISS)
+        w = run(FishingWorker(fish(slugfish_delay=0.15), b, lambda *a: None, poll=0.01), 0.5)
+        self.assertGreaterEqual(w.catches, 1)
+        self.assertGreaterEqual(b.clicks[0][0], 0.15)
+
+    def test_recast_updates_last_cast_at_and_resets_slugfish_flag(self):
+        # fereastra Slugfish trebuie sa porneasca din nou la FIECARE aruncare,
+        # nu doar o data la pornire - verificat direct pe mecanismul _recast().
+        b = FakeBackend(lambda t: MISS)
+        w = FishingWorker(fish(slugfish_delay=0.15), b,
+                          lambda *a: None, poll=0.01)
+        w._slugfish_logged = True  # simuleaza ca a mai logat o data in fereastra veche
+        t_before = time.monotonic()
+        ok = w._recast()
+        t_after = time.monotonic()
+        self.assertTrue(ok)
+        self.assertTrue(t_before <= w.last_cast_at <= t_after)
+        self.assertFalse(w._slugfish_logged)  # flag-ul s-a resetat pt noua fereastra
+        self.assertEqual([c[1] for c in b.clicks], ["right", "right"])
 
     def test_timeout_recalibrates(self):
         b = FakeBackend(lambda t: MISS)

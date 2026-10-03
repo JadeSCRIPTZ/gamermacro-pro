@@ -15,7 +15,8 @@ testat separat de UI.
 
 **🎣 Macro** — detectorul principal (pescuit): pozitie + culoare + toleranta,
 delay de reactie, cooldown, recalibrare pe timeout, pixel-wait, mod natural
-(8% skip), auto-recast (1 click vs 2 click-uri).
+(8% skip), Slugfish (asteapta X secunde de la ultima aruncare inainte sa
+reactioneze la musca — hookset intarziat, deliberat).
 
 **❄️ Winter** — recunoaste dupa culoare ce creatura marina a aparut la
 pescuit (Grinch / Nutcracker, pixel picker cu numaratoare de 3 secunde,

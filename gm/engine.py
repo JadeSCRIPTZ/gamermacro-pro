@@ -43,8 +43,9 @@ class FishConfig:
     timeout: float = 0.0        # recalibrare dupa X s fara detectie (0 = oprit)
     pixel_wait: float = 0.0     # asteapta X s dupa prima detectie (0 = oprit)
     natural: bool = False       # 8% sansa sa sara o detectie
-    auto_recast: bool = False   # True = 1 click, False = 2 click-uri
-    recast_gap: float = 0.5     # pauza intre cele 2 click-uri
+    recast_gap: float = 0.5     # pauza intre cele 2 click-uri (trage afara + arunca din nou)
+    slugfish_delay: float = 0.0  # "Slugfish": ignora musca timp de X s de la ultima aruncare
+                                  # (0 = oprit, reactioneaza imediat ca inainte)
 
 
 @dataclass
@@ -215,14 +216,17 @@ class FishingWorker(_Worker):
         self.skips = 0
         self.catch_times: List[float] = []
         self.started_at = 0.0
+        self.last_cast_at = 0.0       # pt Slugfish: cand a fost ultima aruncare
+        self._slugfish_logged = False  # log o singura data per fereastra de asteptare
 
     def _recast(self) -> bool:
         c = self.cfg
-        self.backend.click("right")
-        if not c.auto_recast:
-            if not self._wait(c.recast_gap):
-                return False
-            self.backend.click("right")
+        self.backend.click("right")           # trage afara / incheie prinderea
+        if not self._wait(c.recast_gap):
+            return False
+        self.backend.click("right")           # arunca din nou - de-aici incepe Slugfish
+        self.last_cast_at = time.monotonic()
+        self._slugfish_logged = False
         return True
 
     def _catch(self, rgb: RGB) -> bool:
@@ -234,19 +238,20 @@ class FishingWorker(_Worker):
         self.log("warn", f"[#{n}] Bobber!  RGB({rgb[0]},{rgb[1]},{rgb[2]})  delay {c.delay:g}s…")
         if not self._wait(c.delay) or not self._recast():
             return False
-        what = "Recast (1× click)" if c.auto_recast else "Re-aruncat"
-        self.log("ok", f"[#{n}] {what}! Cooldown {c.cooldown:g}s…")
+        self.log("ok", f"[#{n}] Re-aruncat! Cooldown {c.cooldown:g}s…")
         return self._wait(c.cooldown)
 
     def _run(self) -> None:
         c, p = self.cfg, self.cfg.pixel
         self.started_at = time.time()
+        self.last_cast_at = time.monotonic()  # presupunem ca tocmai ai aruncat manual
         self.log("hi",
                  f"START  ({p.x},{p.y})  RGB({p.r},{p.g},{p.b})  ±{p.tol}  "
                  f"delay={c.delay:g}s  cd={c.cooldown:g}s  "
                  f"to={'ON ' + format(c.timeout, 'g') + 's' if c.timeout else 'OFF'}  "
                  f"pw={'ON ' + format(c.pixel_wait, 'g') + 's' if c.pixel_wait else 'OFF'}  "
-                 f"nat={'ON' if c.natural else 'OFF'}")
+                 f"nat={'ON' if c.natural else 'OFF'}  "
+                 f"slugfish={'ON ' + format(c.slugfish_delay, 'g') + 's' if c.slugfish_delay else 'OFF'}")
         state = "RESET"
         self.state(state)
         watch_since = wait_until = 0.0
@@ -286,7 +291,13 @@ class FishingWorker(_Worker):
                     continue
 
                 if state == "WATCH" and hit:
-                    if c.natural and self._rng() < NATURAL_SKIP_CHANCE:
+                    since_cast = now - self.last_cast_at
+                    if c.slugfish_delay > 0 and since_cast < c.slugfish_delay:
+                        if not self._slugfish_logged:
+                            remaining = c.slugfish_delay - since_cast
+                            self.log("dim", f"Slugfish: musca, dar mai astept {remaining:.1f}s…")
+                            self._slugfish_logged = True
+                    elif c.natural and self._rng() < NATURAL_SKIP_CHANCE:
                         self.skips += 1
                         self.log("pur", f"[skip #{self.skips}] Natural — ignorat.")
                         state = "RESET"
